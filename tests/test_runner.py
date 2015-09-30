@@ -20,7 +20,7 @@ def test_all():
     print(test_cpp_1)
     with open(path) as tests:
         for line in tests.readlines():
-            if not line.strip():
+            if not line.strip() or line.startswith("#"):
                 continue
             case = parse_case(line)
             for match in matches_from_pattern(test_cpp_1,

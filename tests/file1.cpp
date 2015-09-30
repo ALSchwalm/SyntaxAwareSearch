@@ -20,3 +20,5 @@ int bar() {
 }
 
 int test_foo(int) {}
+
+void has_parameters(float x, int) {}

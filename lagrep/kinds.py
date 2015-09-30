@@ -9,10 +9,3 @@ Kinds = enum(
     "VARIABLE",
     "PARAMETER"
 )
-
-CharacterMapping = {
-    "F": Kinds.FUNCTION,
-    "T": Kinds.TYPE,
-    "V": Kinds.VARIABLE,
-    "P": Kinds.PARAMETER
-}

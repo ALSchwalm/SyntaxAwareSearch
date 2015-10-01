@@ -15,6 +15,7 @@ int test_foo(int);
 
 int bar() {
     int x;
+    int y;
     test_foo(10);
     return 20;
 }

@@ -2,37 +2,7 @@
 # It is based on the original LLVM file
 
 from clang.cindex import Cursor
-from clang.cindex import TranslationUnit
 import re
-import linecache
-
-
-def get_tu(source, lang='cpp', all_warnings=False, flags=[]):
-    """Obtain a translation unit from source and language.
-
-    By default, the translation unit is created from source file "t.<ext>"
-    where <ext> is the default file extension for the specified language. By
-    default it is C, so "t.c" is the default file name.
-
-    Supported languages are {c, cpp, objc}.
-
-    all_warnings is a convenience argument to enable all compiler warnings.
-    """
-    args = list(flags)
-    name = 't.c'
-    if lang == 'cpp':
-        name = 't.cpp'
-        args.append('-std=c++11')
-    elif lang == 'objc':
-        name = 't.m'
-    elif lang != 'c':
-        raise Exception('Unknown language: %s' % lang)
-
-    if all_warnings:
-        args += ['-Wall', '-Wextra']
-
-    return TranslationUnit.from_source(name, args, unsaved_files=[(name,
-                                       source)])
 
 
 def get_cursor(source, regex=None):
@@ -50,7 +20,6 @@ def get_cursor(source, regex=None):
     for cursor in root_cursor.walk_preorder():
         if regex is None or re.match(regex, cursor.spelling):
             return cursor
-
     return None
 
 
@@ -60,22 +29,16 @@ def get_cursors(source, regex=None):
     This provides a convenient search mechanism to find all cursors with
     specific spelling within a source. The first argument can be either a
     TranslationUnit or Cursor instance.
-
-    If no cursors are found, an empty list is returned.
     """
     # Convenience for calling on a TU.
     root_cursor = source if isinstance(source, Cursor) else source.cursor
 
-    cursors = []
     for cursor in root_cursor.walk_preorder():
         if regex is None or re.match(regex, cursor.spelling):
-            cursors.append(cursor)
-
-    return cursors
+            yield cursor
 
 
 __all__ = [
     'get_cursor',
     'get_cursors',
-    'get_tu',
 ]

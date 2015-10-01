@@ -16,7 +16,7 @@ def find_candidates(filename, ast):
     """ Find patterns in 'filename' matching 'ast'
     """
 
-    tu = TranslationUnit.from_source(filename)
+    tu = TranslationUnit.from_source(filename, ["-std=c++11"])
     for cursor in resolve_ast(tu, ast):
         yield cursor.location.line
 
@@ -58,12 +58,17 @@ def find_cursors_by_operator(tu, ast):
             yield cursor
         for cursor in resolve_ast(tu, ast[2]):
             yield cursor
-    if operator.name == "CHILD":
+    elif operator.name == "CHILD":
         for cursor in resolve_ast(tu, ast[1]):
             for child in recursive_children(cursor):
                 if child in resolve_ast(tu, ast[2]):
                     yield cursor
                     break
+    elif operator.name == "PARENT":
+        for cursor in resolve_ast(tu, ast[2]):
+            for child in recursive_children(cursor):
+                if child in resolve_ast(tu, ast[1]):
+                    yield child
 
 
 def find_cursors_by_kind(tu, kind, data=None):

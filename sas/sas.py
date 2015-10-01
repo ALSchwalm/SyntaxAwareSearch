@@ -1,11 +1,9 @@
-#!/bin/env python
-
-"""Language Aware GREP
+"""Synatx Aware Search
 
 Usage:
-  lagrep <pattern> <file>... [-l <lang>] [--verbose]
-  lagrep (-h | --help)
-  lagrep --version
+  sas <pattern> <file>... [-l <lang>] [--verbose]
+  sas (-h | --help)
+  sas --version
 
 Options:
   -h --help     Show this screen.
@@ -52,7 +50,7 @@ def matches_from_pattern(path, pattern, language=None, verbose=False):
 
 
 def main():
-    arguments = docopt(__doc__, version='lagrep v0.1')
+    arguments = docopt(__doc__, version='sas v0.1')
     for file_name in arguments["<file>"]:
         for match in matches_from_pattern(file_name,
                                           arguments["<pattern>"],

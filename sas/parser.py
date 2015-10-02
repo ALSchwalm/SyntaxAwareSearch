@@ -10,8 +10,8 @@ def parser_from_lexer(lexer, mapping):
         precedence=[
             ('right', ['NOT']),
             ('left', ['PARENT', 'CHILD', 'OR']),
-            ('left', ['AND', 'TYPE']),
-            ('left', ['L_PAREN', 'R_PAREN', 'EQUAL']),
+            ('left', ['AND']),
+            ('left', ['L_PAREN', 'R_PAREN', 'TYPE', 'EQUAL']),
         ])
 
     @pg.production("expr : L_PAREN expr R_PAREN")
@@ -29,7 +29,13 @@ def parser_from_lexer(lexer, mapping):
     @pg.production("expr : expr TYPE DATA")
     def equal(p):
         p[2].value = p[2].value.strip("/")
-        return p
+        if not isinstance(p[0], list):
+            return p
+        else:
+            # Note that this doesn't work for (\F|\V)=foobar
+            p[0].append(p[1])
+            p[0].append(p[2])
+            return p[0]
 
     @pg.production("expr : expr NOT CHILD expr")
     @pg.production("expr : expr NOT PARENT expr")

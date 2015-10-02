@@ -12,7 +12,7 @@ def lexer_from_mapping(mapping):
         lg.add(char, r"\\" + char)
 
     # Normal tokens
-    lg.add("TYPE", r'~')
+    lg.add("TYPE", r':')
     lg.add("AND", r'\&')
     lg.add("OR", r'\|')
     lg.add("L_PAREN", r'\(')
@@ -20,9 +20,10 @@ def lexer_from_mapping(mapping):
     lg.add("EQUAL", r'=')
     lg.add("CHILD", r'>')
     lg.add("PARENT", r'<')
+    lg.add("NOT", r'!')
 
     # Everything else is data
-    excluded_chars = r'^<>=&|()~'
+    excluded_chars = r'^<>=&|():!'
     for char in mapping.keys():
         excluded_chars += r"\\" + char
         lg.add("DATA", "[{excluded}]+".format(excluded=excluded_chars))

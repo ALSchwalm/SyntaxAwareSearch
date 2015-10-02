@@ -58,17 +58,28 @@ def find_cursors_by_operator(tu, ast):
             yield cursor
         for cursor in resolve_ast(tu, ast[2]):
             yield cursor
-    elif operator.name == "CHILD":
+    elif operator.name in ("CHILD", "NOT_CHILD"):
         for cursor in resolve_ast(tu, ast[1]):
             for child in recursive_children(cursor):
                 if child in resolve_ast(tu, ast[2]):
-                    yield cursor
+                    if operator.name == "CHILD":
+                        yield cursor
                     break
+            else:
+                if operator.name == "NOT_CHILD":
+                    yield cursor
     elif operator.name == "PARENT":
         for cursor in resolve_ast(tu, ast[2]):
             for child in recursive_children(cursor):
                 if child in resolve_ast(tu, ast[1]):
                     yield child
+    elif operator.name == "NOT_PARENT":
+        for cursor in resolve_ast(tu, ast[1]):
+            for cursor2 in resolve_ast(tu, ast[2]):
+                if cursor in recursive_children(cursor2):
+                    break
+            else:
+                yield cursor
 
 
 def find_cursors_by_kind(tu, kind, data=None):

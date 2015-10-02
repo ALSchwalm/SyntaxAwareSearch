@@ -1,6 +1,6 @@
 import os
 from collections import namedtuple
-from lagrep.lagrep import matches_from_pattern
+from sas.sas import matches_from_pattern
 
 TestCase = namedtuple("TestCase", ["lines", "passes", "pattern"])
 

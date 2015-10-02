@@ -8,9 +8,10 @@ def parser_from_lexer(lexer, mapping):
 
         # NOTE: This is pretty arbitrary at the moment
         precedence=[
+            ('right', ['NOT']),
             ('left', ['PARENT', 'CHILD', 'OR']),
             ('left', ['AND', 'TYPE']),
-            ('left', ['L_PAREN', 'R_PAREN', "EQUAL"]),
+            ('left', ['L_PAREN', 'R_PAREN', 'EQUAL']),
         ])
 
     @pg.production("expr : L_PAREN expr R_PAREN")
@@ -24,21 +25,20 @@ def parser_from_lexer(lexer, mapping):
     def binary_operation(p):
         return [p[1], p[0], p[2]]
 
-    @pg.production("expr : expr EQUAL DATA TYPE DATA")
-    def constraing_data(p):
-        # In `\P=foobar~int` the type is on '\P'
-        p[2].value = p[2].value.strip("/")
-        return p
-
     @pg.production("expr : expr EQUAL DATA")
+    @pg.production("expr : expr TYPE DATA")
     def equal(p):
         p[2].value = p[2].value.strip("/")
         return p
 
-    @pg.production("expr : expr TYPE DATA")
-    def type(p):
-        p[2].value = p[2].value.strip("/")
-        return p
+    @pg.production("expr : expr NOT CHILD expr")
+    @pg.production("expr : expr NOT PARENT expr")
+    def not_expr(p):
+        # This is a hack
+        op = p[2]
+        op.name = "NOT_" + op.name
+        op.value = "!" + op.value
+        return [op, p[0], p[3]]
 
     for kind in mapping.keys():
         @pg.production("expr : " + kind)

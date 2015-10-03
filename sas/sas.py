@@ -44,7 +44,7 @@ def matches_from_pattern(path, pattern, language=None, verbose=False):
     if verbose:
         import pprint
         pprint.pprint(ast)
-
+    return
     for line in find_candidates(path, ast):
         yield line
 

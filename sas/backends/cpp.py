@@ -37,25 +37,27 @@ def matches_by_kinds(cursor, variable, kinds):
         match(variable.name, cursor.spelling)
 
 def matches_function_parameters(cursor, function):
-    #TODO: Allow ellipses anywhere in the signature
-    ellipses_present = False
-    parameters = function.parameters
-    if len(parameters) > 0 and isinstance(parameters[-1], Token):
-        if function.parameters[-1].name == "ELLIPSES":
-            ellipses_present = True
-            parameters = function.parameters[:-1]
-    if not ellipses_present and \
-       len(list(cursor.get_arguments())) != len(parameters):
-        return False
-    elif ellipses_present and \
-         len(list(cursor.get_arguments())) < len(parameters):
-        return False
-    for i, parameter in enumerate(cursor.get_arguments()):
-        if len(parameters) <= i and ellipses_present:
-            return True
-        if not matches_by_kinds(parameter, parameters[i],
-                                (CursorKind.PARM_DECL,)):
+    cursor_parameters = list(cursor.get_arguments())
+    ellipses_active = False
+    for parameter in function.parameters:
+        if isinstance(parameter, Token):
+            ellipses_active = True
+            continue
+        if len(cursor_parameters) == 0:
             return False
+
+        if not matches_by_kinds(cursor_parameters[0],
+                                parameter,
+                                (CursorKind.PARM_DECL,)):
+            if not ellipses_active:
+                return False
+            else:
+                cursor_parameters = cursor_parameters[1:]
+        else:
+            cursor_parameters = cursor_parameters[1:]
+            ellipses_active = False
+    if len(cursor_parameters) and not ellipses_active:
+        return False
     return True
 
 def resolve_function(tu, function):

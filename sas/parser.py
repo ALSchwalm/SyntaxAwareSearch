@@ -63,6 +63,7 @@ def parameter_list(p):
 
 @pg.production("list_contents : ELLIPSES")
 @pg.production("list_contents : variable COMMA list_contents")
+@pg.production("list_contents : ELLIPSES COMMA list_contents")
 @pg.production("list_contents : variable")
 def list_contents(p):
     if len(p) == 1:

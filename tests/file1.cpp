@@ -23,3 +23,11 @@ int bar() {
 int test_foo(int) {}
 
 void has_parameters(float x, int) {}
+
+namespace foo {
+namespace bar {
+namespace baz {
+int x;
+}
+}
+}

@@ -38,6 +38,14 @@ def get_cursors(source, regex=None):
             yield cursor
 
 
+def get_root_cursors(source, regex=None):
+    # Convenience for calling on a TU.
+    root_cursor = source if isinstance(source, Cursor) else source.cursor
+    for cursor in root_cursor.get_children():
+        if regex is None or re.match(regex, cursor.spelling):
+            yield cursor
+
+
 __all__ = [
     'get_cursor',
     'get_cursors',

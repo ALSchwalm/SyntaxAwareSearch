@@ -1,6 +1,6 @@
 from clang.cindex import TranslationUnit
 from clang.cindex import CursorKind
-from .utils import get_cursors
+from .utils import get_cursors, get_root_cursors
 from ..wrappers import *
 from re import match
 from rply import Token
@@ -26,13 +26,6 @@ def resolve_ast(tu, ast):
     elif isinstance(ast, Class):
         for cursor in resolve_class(tu, ast):
             yield cursor
-
-
-def recursive_children(cursor):
-    for child in cursor.get_children():
-        for grandchild in recursive_children(child):
-            yield grandchild
-        yield child
 
 def matches_by_kinds(cursor, variable, kinds):
     return cursor.kind in kinds and \
@@ -63,19 +56,49 @@ def matches_function_parameters(cursor, function):
         return False
     return True
 
+def resolve_qualifiers(tu, qualifiers):
+    if not qualifiers:
+        for cursor in get_cursors(tu):
+            yield cursor
+    else:
+        def valid_qualifier_cursor(cursor):
+            return cursor.kind in (CursorKind.CLASS_DECL,
+                                   CursorKind.STRUCT_DECL,
+                                   CursorKind.NAMESPACE)
+        def recurse_qualifiers(cursor, qualifiers):
+            if len(qualifiers) == 0:
+                for child in cursor.get_children():
+                    yield child
+            else:
+                for child in cursor.get_children():
+                    if not match(qualifiers[0], child.spelling) or \
+                       not valid_qualifier_cursor(child):
+                        continue
+                    for inner in recurse_qualifiers(child, qualifiers[1:]):
+                        yield inner
+        for cursor in get_root_cursors(tu, qualifiers[0]):
+            if not valid_qualifier_cursor(cursor):
+                continue
+            for inner in recurse_qualifiers(cursor, qualifiers[1:]):
+                yield inner
+
+
 def resolve_function(tu, function):
-    for cursor in get_cursors(tu, function.name):
+    for cursor in resolve_qualifiers(tu, function.qualifiers):
         if cursor.kind in (CursorKind.FUNCTION_DECL, CursorKind.CXX_METHOD) and \
+           match(function.name, cursor.spelling) and \
            match(function.return_type, cursor.result_type.spelling) and \
            matches_function_parameters(cursor, function):
             yield cursor
 
 def resolve_variable(tu, variable):
-    for cursor in get_cursors(tu, variable.name):
-        if matches_by_kinds(cursor, variable, (CursorKind.VAR_DECL,)):
+    for cursor in resolve_qualifiers(tu, variable.qualifiers):
+        if match(variable.name, cursor.spelling) and \
+           matches_by_kinds(cursor, variable, (CursorKind.VAR_DECL,)):
             yield cursor
 
 def resolve_class(tu, class_t):
-    for cursor in get_cursors(tu, class_t.name):
-        if cursor.kind in (CursorKind.CLASS_DECL, CursorKind.STRUCT_DECL):
+    for cursor in resolve_qualifiers(tu, class_t.qualifiers):
+        if match(class_t.name, cursor.spelling) and \
+           cursor.kind in (CursorKind.CLASS_DECL, CursorKind.STRUCT_DECL):
             yield cursor

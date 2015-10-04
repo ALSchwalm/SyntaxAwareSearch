@@ -23,10 +23,14 @@ def test_all():
             if not line.strip() or line.startswith("#"):
                 continue
             case = parse_case(line)
-            for match in matches_from_pattern(test_cpp_1,
-                                              case.pattern,
-                                              language="cpp"):
+            matches = list(matches_from_pattern(test_cpp_1,case.pattern,
+                                                language="cpp"))
+            for line in case.lines:
                 if case.passes:
-                    assert(match in case.lines)
+                    if not line in matches:
+                        print(case.pattern, line)
+                    assert(line in matches)
                 else:
-                    assert(match not in case.lines)
+                    if line in matches:
+                        print(case.pattern, line)
+                    assert(line not in matches)

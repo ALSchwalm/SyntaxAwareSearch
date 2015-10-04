@@ -11,10 +11,12 @@ lg.add("R_PAREN", r'\)')
 lg.add("DOUBLE_COLON", r'::')
 lg.add("COLON", r':')
 
+lg.add("POUND", r'#')
+
 lg.add("COMMA", r',')
 lg.add("ELLIPSES", r'\.\.\.')
 
-lg.add("DATA", r'[^():,{}]+')
+lg.add("DATA", r'[^():,{}#]+')
 
 lg.ignore(r'\s+')
 lexer = lg.build()

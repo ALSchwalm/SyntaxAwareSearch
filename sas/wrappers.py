@@ -23,3 +23,12 @@ class Variable(object):
     def __repr__(self):
         return "Variable(\"{}\", \"{}\", {})".format(
             self.name, self.type, self.qualifiers)
+
+class Class(object):
+    def __init__(self, name=".*", qualifiers=[]):
+        self.name = name
+        self.qualifiers = qualifiers
+
+    def __repr__(self):
+        return "Class(\"{}\", {})".format(self.name,
+                                          self.qualifiers)

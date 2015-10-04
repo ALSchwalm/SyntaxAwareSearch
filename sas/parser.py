@@ -17,13 +17,21 @@ def main(p):
 @pg.production("declaration : variable")
 @pg.production("declaration : qualified_function")
 @pg.production("declaration : function")
+@pg.production("declaration : class")
+@pg.production("declaration : qualified_class")
 def declaration(p):
     return p[0]
+
+@pg.production("class : POUND DATA")
+def class_decl(p):
+    return Class(p[1].value)
 
 @pg.production("qualified_variable : qualifier variable")
 @pg.production("qualified_variable : qualifier qualified_variable")
 @pg.production("qualified_function : qualifier function")
 @pg.production("qualified_function : qualifier qualified_function")
+@pg.production("qualified_class : qualifier class")
+@pg.production("qualified_class : qualifier qualified_class")
 def qualified(p):
     p[1].qualifiers.insert(0, p[0])
     return p[1]

@@ -23,6 +23,9 @@ def resolve_ast(tu, ast):
     elif isinstance(ast, Variable):
         for cursor in resolve_variable(tu, ast):
             yield cursor
+    elif isinstance(ast, Class):
+        for cursor in resolve_class(tu, ast):
+            yield cursor
 
 
 def recursive_children(cursor):
@@ -70,4 +73,9 @@ def resolve_function(tu, function):
 def resolve_variable(tu, variable):
     for cursor in get_cursors(tu, variable.name):
         if matches_by_kinds(cursor, variable, (CursorKind.VAR_DECL,)):
+            yield cursor
+
+def resolve_class(tu, class_t):
+    for cursor in get_cursors(tu, class_t.name):
+        if cursor.kind in (CursorKind.CLASS_DECL, CursorKind.STRUCT_DECL):
             yield cursor

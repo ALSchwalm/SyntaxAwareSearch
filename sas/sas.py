@@ -12,8 +12,8 @@ Options:
   --verbose     Show more info in output (e.g., AST)
 """
 
-from .lexer import lexer_from_mapping
-from .parser import parser_from_lexer
+from .lexer import lexer
+from .parser import parser
 from docopt import docopt
 import linecache
 
@@ -28,15 +28,11 @@ def grep_print(file_name, line):
 
 
 def matches_from_pattern(path, pattern, language=None, verbose=False):
-    lexer = None
-    parser = None
     find_candidates = None
 
     if not language or language == "cpp":
-        from .backends.cpp import find_candidates, CharacterMapping
+        from .backends.cpp import find_candidates
         find_candidates = find_candidates
-        lexer = lexer_from_mapping(CharacterMapping)
-        parser = parser_from_lexer(lexer, CharacterMapping)
 
     lexed = lexer.lex(pattern)
     ast = parser.parse(lexed)
@@ -44,7 +40,6 @@ def matches_from_pattern(path, pattern, language=None, verbose=False):
     if verbose:
         import pprint
         pprint.pprint(ast)
-    return
     for line in find_candidates(path, ast):
         yield line
 

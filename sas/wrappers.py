@@ -32,3 +32,12 @@ class Class(object):
     def __repr__(self):
         return "Class(\"{}\", {})".format(self.name,
                                           self.qualifiers)
+
+class Search(object):
+    def __init__(self, search=".*", qualifiers=[]):
+        self.search = search
+        self.qualifiers = qualifiers
+
+    def __repr__(self):
+        return "Search(\"{}\", {})".format(self.search,
+                                           self.qualifiers)

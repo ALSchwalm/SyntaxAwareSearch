@@ -13,12 +13,15 @@ pg = ParserGenerator(
 def main(p):
     return p[0]
 
+
 @pg.production("declaration : qualified_variable")
 @pg.production("declaration : variable")
 @pg.production("declaration : qualified_function")
 @pg.production("declaration : function")
 @pg.production("declaration : class")
 @pg.production("declaration : qualified_class")
+@pg.production("declaration : qualified_search")
+@pg.production("declaration : search")
 def declaration(p):
     return p[0]
 
@@ -32,6 +35,8 @@ def class_decl(p):
 @pg.production("qualified_function : qualifier qualified_function")
 @pg.production("qualified_class : qualifier class")
 @pg.production("qualified_class : qualifier qualified_class")
+@pg.production("qualified_search : qualifier search")
+@pg.production("qualified_search : qualifier qualified_search")
 def qualified(p):
     p[1].qualifiers.insert(0, p[0])
     return p[1]
@@ -84,7 +89,6 @@ def list_contents(p):
 @pg.production("variable : data COLON data")
 @pg.production("variable : COLON data")
 @pg.production("variable : data COLON")
-@pg.production("variable : data")
 def variable(p):
     type = ".*"
     if p[0].name == "COLON":
@@ -99,5 +103,9 @@ def variable(p):
 def data(p):
     p[0].value = p[0].value.strip("/")
     return p[0]
+
+@pg.production("search : data")
+def search(p):
+    return Search(p[0].value)
 
 parser = pg.build()

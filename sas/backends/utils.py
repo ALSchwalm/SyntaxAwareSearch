@@ -39,7 +39,8 @@ def get_cursors(source, regex=None):
 
 
 def get_root_cursors(source, regex=None):
-    # Convenience for calling on a TU.
+    """ A generator yielding each 'top level' cursor
+    """
     root_cursor = source if isinstance(source, Cursor) else source.cursor
     for cursor in root_cursor.get_children():
         if regex is None or re.match(regex, cursor.spelling):
@@ -49,4 +50,5 @@ def get_root_cursors(source, regex=None):
 __all__ = [
     'get_cursor',
     'get_cursors',
+    'get_root_cursors'
 ]

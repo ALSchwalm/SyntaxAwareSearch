@@ -26,6 +26,9 @@ def resolve_ast(tu, ast):
     elif isinstance(ast, Class):
         for cursor in resolve_class(tu, ast):
             yield cursor
+    elif isinstance(ast, Search):
+        for cursor in resolve_basic_search(tu, ast):
+            yield cursor
 
 def matches_by_kinds(cursor, variable, kinds):
     return cursor.kind in kinds and \
@@ -101,4 +104,9 @@ def resolve_class(tu, class_t):
     for cursor in resolve_qualifiers(tu, class_t.qualifiers):
         if match(class_t.name, cursor.spelling) and \
            cursor.kind in (CursorKind.CLASS_DECL, CursorKind.STRUCT_DECL):
+            yield cursor
+
+def resolve_basic_search(tu, search):
+    for cursor in resolve_qualifiers(tu, search.qualifiers):
+        if match(search.search, cursor.spelling):
             yield cursor

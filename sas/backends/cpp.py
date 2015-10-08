@@ -10,24 +10,24 @@ def find_candidates(filename, ast):
     """
 
     tu = TranslationUnit.from_source(filename, ["-std=c++11"])
-    for cursor in resolve_ast(tu, ast):
+    for cursor in resolve_ast(tu, ast, filename):
         yield cursor.location.line
 
 
-def resolve_ast(tu, ast):
+def resolve_ast(tu, ast, filename):
     """ Yields cursors matching the pattern in 'ast'
     """
     if isinstance(ast, Function):
-        for cursor in resolve_function(tu, ast):
+        for cursor in resolve_function(tu, ast, filename):
             yield cursor
     elif isinstance(ast, Variable):
-        for cursor in resolve_variable(tu, ast):
+        for cursor in resolve_variable(tu, ast, filename):
             yield cursor
     elif isinstance(ast, Class):
-        for cursor in resolve_class(tu, ast):
+        for cursor in resolve_class(tu, ast, filename):
             yield cursor
     elif isinstance(ast, Search):
-        for cursor in resolve_basic_search(tu, ast):
+        for cursor in resolve_basic_search(tu, ast, filename):
             yield cursor
 
 def matches_by_kinds(cursor, variable, kinds):
@@ -59,9 +59,9 @@ def matches_function_parameters(cursor, function):
         return False
     return True
 
-def resolve_qualifiers(tu, qualifiers):
+def resolve_qualifiers(tu, qualifiers, filename):
     if not qualifiers:
-        for cursor in get_cursors(tu):
+        for cursor in get_cursors(tu, filename=filename):
             yield cursor
     else:
         def valid_qualifier_cursor(cursor):
@@ -79,34 +79,34 @@ def resolve_qualifiers(tu, qualifiers):
                         continue
                     for inner in recurse_qualifiers(child, qualifiers[1:]):
                         yield inner
-        for cursor in get_root_cursors(tu, qualifiers[0]):
+        for cursor in get_root_cursors(tu, qualifiers[0], filename):
             if not valid_qualifier_cursor(cursor):
                 continue
             for inner in recurse_qualifiers(cursor, qualifiers[1:]):
                 yield inner
 
 
-def resolve_function(tu, function):
-    for cursor in resolve_qualifiers(tu, function.qualifiers):
+def resolve_function(tu, function, filename):
+    for cursor in resolve_qualifiers(tu, function.qualifiers, filename):
         if cursor.kind in (CursorKind.FUNCTION_DECL, CursorKind.CXX_METHOD) and \
            match(function.name, cursor.spelling) and \
            match(function.return_type, cursor.result_type.spelling) and \
            matches_function_parameters(cursor, function):
             yield cursor
 
-def resolve_variable(tu, variable):
-    for cursor in resolve_qualifiers(tu, variable.qualifiers):
+def resolve_variable(tu, variable, filename):
+    for cursor in resolve_qualifiers(tu, variable.qualifiers, filename):
         if match(variable.name, cursor.spelling) and \
            matches_by_kinds(cursor, variable, (CursorKind.VAR_DECL,)):
             yield cursor
 
-def resolve_class(tu, class_t):
-    for cursor in resolve_qualifiers(tu, class_t.qualifiers):
+def resolve_class(tu, class_t, filename):
+    for cursor in resolve_qualifiers(tu, class_t.qualifiers, filename):
         if match(class_t.name, cursor.spelling) and \
            cursor.kind in (CursorKind.CLASS_DECL, CursorKind.STRUCT_DECL):
             yield cursor
 
-def resolve_basic_search(tu, search):
-    for cursor in resolve_qualifiers(tu, search.qualifiers):
+def resolve_basic_search(tu, search, filename):
+    for cursor in resolve_qualifiers(tu, search.qualifiers, filename):
         if match(search.search, cursor.spelling):
             yield cursor

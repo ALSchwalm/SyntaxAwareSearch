@@ -16,7 +16,7 @@ int test_foo(int);
 int bar() {
     int x;
     int y;
-    test_foo(10);
+    test_foo(x);
     return 20;
 }
 
@@ -31,3 +31,5 @@ int x;
 }
 }
 }
+
+int x = test_foo(10);

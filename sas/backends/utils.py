@@ -44,7 +44,6 @@ def get_root_cursors(source, regex=None, filename=None):
 
 
 __all__ = [
-    'get_cursor',
     'get_cursors',
     'get_root_cursors'
 ]

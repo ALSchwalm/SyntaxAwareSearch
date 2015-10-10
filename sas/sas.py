@@ -40,8 +40,8 @@ def matches_from_pattern(path, pattern, language=None, verbose=False):
     if verbose:
         import pprint
         pprint.pprint(ast)
-    for line in find_candidates(path, ast):
-        yield line
+    for match in find_candidates(path, ast):
+        yield match[0][0]
 
 
 def main():

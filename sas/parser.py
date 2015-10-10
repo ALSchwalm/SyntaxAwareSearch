@@ -10,9 +10,14 @@ pg = ParserGenerator(
     precedence=[])
 
 @pg.production("main : declaration")
+@pg.production("main : expression")
 def main(p):
     return p[0]
 
+@pg.production("expression : R_ANGLE declaration")
+def expression(p):
+    p[1].expression = True
+    return p[1]
 
 @pg.production("declaration : qualified_variable")
 @pg.production("declaration : variable")

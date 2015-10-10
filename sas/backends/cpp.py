@@ -11,7 +11,9 @@ def find_candidates(filename, ast):
 
     tu = TranslationUnit.from_source(filename, ["-std=c++11"])
     for cursor in resolve_ast(tu, ast, filename):
-        yield cursor.location.line
+        start, end = cursor.extent.start, cursor.extent.end
+        yield ((start.line, start.column),
+               (end.line, end.column))
 
 
 def resolve_ast(tu, ast, filename):
@@ -87,23 +89,40 @@ def resolve_qualifiers(tu, qualifiers, filename):
 
 
 def resolve_function(tu, function, filename):
+    if not function.expression:
+        allowed_kinds = (CursorKind.FUNCTION_DECL,
+                         CursorKind.CXX_METHOD,
+                         CursorKind.FUNCTION_TEMPLATE,
+                         CursorKind.CONSTRUCTOR,
+                         CursorKind.DESTRUCTOR)
+    else:
+        allowed_kinds = (CursorKind.CALL_EXPR,)
     for cursor in resolve_qualifiers(tu, function.qualifiers, filename):
-        if cursor.kind in (CursorKind.FUNCTION_DECL, CursorKind.CXX_METHOD) and \
+
+        if cursor.kind in allowed_kinds and \
            match(function.name, cursor.spelling) and \
            match(function.return_type, cursor.result_type.spelling) and \
            matches_function_parameters(cursor, function):
             yield cursor
 
 def resolve_variable(tu, variable, filename):
+    if not variable.expression:
+        allowed_kinds = (CursorKind.VAR_DECL,)
+    else:
+        allowed_kinds = (CursorKind.DECL_REF_EXPR,
+                         CursorKind.MEMBER_REF_EXPR)
     for cursor in resolve_qualifiers(tu, variable.qualifiers, filename):
         if match(variable.name, cursor.spelling) and \
-           matches_by_kinds(cursor, variable, (CursorKind.VAR_DECL,)):
+           matches_by_kinds(cursor, variable, allowed_kinds):
             yield cursor
 
 def resolve_class(tu, class_t, filename):
     for cursor in resolve_qualifiers(tu, class_t.qualifiers, filename):
         if match(class_t.name, cursor.spelling) and \
-           cursor.kind in (CursorKind.CLASS_DECL, CursorKind.STRUCT_DECL):
+           cursor.kind in (CursorKind.CLASS_DECL,
+                           CursorKind.STRUCT_DECL,
+                           CursorKind.CLASS_TEMPLATE,
+                           CursorKind.CLASS_TEMPLATE_PARTIAL_SPECIALIZATION):
             yield cursor
 
 def resolve_basic_search(tu, search, filename):

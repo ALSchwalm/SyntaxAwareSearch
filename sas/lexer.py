@@ -8,8 +8,6 @@ lg.add("DATA", r'/.+?/')
 lg.add("L_PAREN", r'\(')
 lg.add("R_PAREN", r'\)')
 
-lg.add("R_ANGLE", r'>')
-
 lg.add("DOUBLE_COLON", r'::')
 lg.add("COLON", r':')
 

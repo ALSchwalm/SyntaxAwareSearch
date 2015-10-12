@@ -1,7 +1,7 @@
 """Synatx Aware Search
 
 Usage:
-  sas <pattern> <file>... [-l <lang>] [--verbose]
+  sas <pattern> <file>... [-l <lang>] [--verbose] [-d] [-e]
   sas (-h | --help)
   sas --version
 
@@ -9,49 +9,65 @@ Options:
   -h --help     Show this screen.
   --version     Show version.
   -l=<lang>     Set the search lang
+  -e            Match expressions
+  -d            Match declarations
   --verbose     Show more info in output (e.g., AST)
 """
 
 from .lexer import lexer
 from .parser import parser
+from .config import Config
 from docopt import docopt
 import linecache
 
 
-def grep_print(file_name, line):
+def grep_print(filename, line):
     """ Print a cursor using a grep-like syntax
     """
     print("{location}:{line}:{match}".format(
-        location=file_name,
+        location=filename,
         line=line,
-        match=linecache.getline(file_name, line).strip()))
+        match=linecache.getline(filename, line).strip()))
 
 
-def matches_from_pattern(path, pattern, language=None, verbose=False):
+def matches_from_pattern(config):
     find_candidates = None
 
-    if not language or language == "cpp":
+    if not config.language or config.language == "cpp":
         from .backends.cpp import find_candidates
         find_candidates = find_candidates
 
-    lexed = lexer.lex(pattern)
+    lexed = lexer.lex(config.raw_pattern)
     ast = parser.parse(lexed)
 
-    if verbose:
+    if config.verbose:
         import pprint
         pprint.pprint(ast)
-    for match in find_candidates(path, ast):
+    for match in find_candidates(config, ast):
         yield match[0][0]
 
 
 def main():
-    arguments = docopt(__doc__, version='sas v0.1')
-    for file_name in arguments["<file>"]:
-        for match in matches_from_pattern(file_name,
-                                          arguments["<pattern>"],
-                                          arguments["-l"],
-                                          arguments["--verbose"]):
-            grep_print(file_name, match)
+    arguments = docopt(__doc__, version='sas v0.2')
+    mode = Config.MATCH_MODE.DECLARATION | Config.MATCH_MODE.EXPRESSION
+    if arguments["-d"] or arguments["-e"]:
+        mode = 0
+        if arguments["-d"]:
+            mode |= Config.MATCH_MODE.DECLARATION
+        if arguments["-e"]:
+            mode |= Config.MATCH_MODE.EXPRESSION
+
+    config = Config(
+        raw_pattern=arguments["<pattern>"],
+        language=arguments["-l"],
+        mode=mode,
+        verbose=arguments["--verbose"]
+    )
+
+    for filename in arguments["<file>"]:
+        config.filename = filename
+        for match in matches_from_pattern(config):
+            grep_print(filename, match)
 
 
 if __name__ == "__main__":

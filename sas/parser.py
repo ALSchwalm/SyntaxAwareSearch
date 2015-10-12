@@ -9,15 +9,10 @@ pg = ParserGenerator(
     # NOTE: This is pretty arbitrary at the moment
     precedence=[])
 
+
 @pg.production("main : declaration")
-@pg.production("main : expression")
 def main(p):
     return p[0]
-
-@pg.production("expression : R_ANGLE declaration")
-def expression(p):
-    p[1].expression = True
-    return p[1]
 
 @pg.production("declaration : qualified_variable")
 @pg.production("declaration : variable")
@@ -30,9 +25,11 @@ def expression(p):
 def declaration(p):
     return p[0]
 
+
 @pg.production("class : POUND DATA")
 def class_decl(p):
     return Class(p[1].value)
+
 
 @pg.production("qualified_variable : qualifier variable")
 @pg.production("qualified_variable : qualifier qualified_variable")
@@ -46,9 +43,11 @@ def qualified(p):
     p[1].qualifiers.insert(0, p[0])
     return p[1]
 
+
 @pg.production("qualifier : data DOUBLE_COLON")
 def qualifier(p):
     return p[0].value
+
 
 @pg.production("function : data COLON data parameter_list")
 @pg.production("function : data COLON parameter_list")
@@ -69,6 +68,7 @@ def function(p):
         return_type = ".*"
     parameter_list = p[-1]
     return Function(name, return_type, parameter_list)
+
 
 @pg.production("parameter_list : L_PAREN list_contents R_PAREN")
 @pg.production("parameter_list : L_PAREN R_PAREN")
@@ -104,10 +104,12 @@ def variable(p):
             type = p[2].value
         return Variable(name=name, type=type)
 
+
 @pg.production("data : DATA")
 def data(p):
     p[0].value = p[0].value.strip("/")
     return p[0]
+
 
 @pg.production("search : data")
 def search(p):

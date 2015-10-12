@@ -1,7 +1,7 @@
 class SASType(object):
-    def __init__(self, qualifiers=[], expression=False):
+    def __init__(self, qualifiers=[]):
         self.qualifiers = qualifiers
-        self.expression = expression
+
 
 class Function(SASType):
     def __init__(self, name=".*", return_type=".*",
@@ -19,6 +19,7 @@ class Function(SASType):
             self.qualifiers
         )
 
+
 class Variable(SASType):
     def __init__(self, name=".*", type=".*", qualifiers=[]):
         SASType.__init__(self, qualifiers)
@@ -29,6 +30,7 @@ class Variable(SASType):
         return "Variable(\"{}\", \"{}\", {})".format(
             self.name, self.type, self.qualifiers)
 
+
 class Class(SASType):
     def __init__(self, name=".*", qualifiers=[]):
         SASType.__init__(self, qualifiers)
@@ -37,6 +39,7 @@ class Class(SASType):
     def __repr__(self):
         return "Class(\"{}\", {})".format(self.name,
                                           self.qualifiers)
+
 
 class Search(SASType):
     def __init__(self, search=".*", qualifiers=[]):

@@ -1,6 +1,7 @@
 class SASType(object):
-    def __init__(self, qualifiers=[]):
+    def __init__(self, qualifiers=[], contents=[]):
         self.qualifiers = qualifiers
+        self.contents = []
 
 
 class Function(SASType):
@@ -12,11 +13,12 @@ class Function(SASType):
         self.parameters = parameters
 
     def __repr__(self):
-        return "Function(\"{}\", \"{}\", {}, {})".format(
+        return "Function(\"{}\", \"{}\", {}, {}, {})".format(
             self.name,
             self.return_type,
             self.parameters,
-            self.qualifiers
+            self.qualifiers,
+            self.contents
         )
 
 
@@ -27,8 +29,9 @@ class Variable(SASType):
         self.type = type
 
     def __repr__(self):
-        return "Variable(\"{}\", \"{}\", {})".format(
-            self.name, self.type, self.qualifiers)
+        return "Variable(\"{}\", \"{}\", {}, {})".format(
+            self.name, self.type, self.qualifiers,
+            self.contents)
 
 
 class Class(SASType):
@@ -37,8 +40,9 @@ class Class(SASType):
         self.name = name
 
     def __repr__(self):
-        return "Class(\"{}\", {})".format(self.name,
-                                          self.qualifiers)
+        return "Class(\"{}\", {}, {})".format(self.name,
+                                              self.qualifiers,
+                                              self.contents)
 
 
 class Search(SASType):
@@ -47,5 +51,6 @@ class Search(SASType):
         self.search = search
 
     def __repr__(self):
-        return "Search(\"{}\", {})".format(self.search,
-                                           self.qualifiers)
+        return "Search(\"{}\", {}, {})".format(self.search,
+                                               self.qualifiers,
+                                               self.contents)

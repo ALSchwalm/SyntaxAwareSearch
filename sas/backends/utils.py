@@ -4,15 +4,18 @@
 from clang.cindex import Cursor
 import re
 
-def get_cursors(source, regex=None, filename=None):
+
+def get_cursors(source, regex=None, filename=None, root=None):
     """Obtain all cursors from a source object with a specific spelling.
 
     This provides a convenient search mechanism to find all cursors with
     specific spelling within a source. The first argument can be either a
     TranslationUnit or Cursor instance.
     """
-    # Convenience for calling on a TU.
-    root_cursor = source if isinstance(source, Cursor) else source.cursor
+    if root is None:
+        root_cursor = source if isinstance(source, Cursor) else source.cursor
+    else:
+        root_cursor = root
 
     def is_valid(cursor):
         if regex is None or re.match(regex, cursor.spelling):
@@ -32,10 +35,13 @@ def get_cursors(source, regex=None, filename=None):
         yield cursor
 
 
-def get_root_cursors(source, regex=None, filename=None):
+def get_root_cursors(source, regex=None, filename=None, root=None):
     """ A generator yielding each 'top level' cursor
     """
-    root_cursor = source if isinstance(source, Cursor) else source.cursor
+    if root is None:
+        root_cursor = source if isinstance(source, Cursor) else source.cursor
+    else:
+        root_cursor = root
     for cursor in root_cursor.get_children():
         if filename is not None and filename != str(cursor.location.file):
             continue

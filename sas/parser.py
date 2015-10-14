@@ -10,25 +10,33 @@ pg = ParserGenerator(
     precedence=[])
 
 
-@pg.production("main : declaration")
-def main(p):
-    return p[0]
-
-@pg.production("declaration : qualified_variable")
-@pg.production("declaration : variable")
-@pg.production("declaration : qualified_function")
-@pg.production("declaration : function")
-@pg.production("declaration : class")
-@pg.production("declaration : qualified_class")
-@pg.production("declaration : qualified_search")
-@pg.production("declaration : search")
-def declaration(p):
+@pg.production("term : qualified_variable")
+@pg.production("term : variable")
+@pg.production("term : qualified_function")
+@pg.production("term : function")
+@pg.production("term : class")
+@pg.production("term : qualified_class")
+@pg.production("term : qualified_search")
+@pg.production("term : search")
+@pg.production("term : term scope")
+def term(p):
+    if len(p) > 1:
+        p[0].contents = p[1]
     return p[0]
 
 
 @pg.production("class : POUND DATA")
 def class_decl(p):
     return Class(p[1].value)
+
+
+@pg.production("scope : L_CURLY term R_CURLY")
+@pg.production("scope : L_CURLY R_CURLY")
+def scope(p):
+    if len(p) == 2:
+        return []
+    p[1].qualifiers = None
+    return [p[1]]
 
 
 @pg.production("qualified_variable : qualifier variable")
@@ -40,12 +48,18 @@ def class_decl(p):
 @pg.production("qualified_search : qualifier search")
 @pg.production("qualified_search : qualifier qualified_search")
 def qualified(p):
-    p[1].qualifiers.insert(0, p[0])
+    if p[0] is None:
+        p[1].qualifiers = None
+    else:
+        p[1].qualifiers.insert(0, p[0])
     return p[1]
 
 
 @pg.production("qualifier : data DOUBLE_COLON")
+@pg.production("qualifier : DOUBLE_COLON")
 def qualifier(p):
+    if len(p) < 2:
+        return None
     return p[0].value
 
 

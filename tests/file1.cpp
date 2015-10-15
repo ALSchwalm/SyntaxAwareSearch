@@ -33,3 +33,8 @@ int x;
 }
 
 int x = test_foo(10);
+
+template <typename T>
+void template_func() {
+    int inner_var;
+}

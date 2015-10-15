@@ -9,15 +9,8 @@ pg = ParserGenerator(
     # NOTE: This is pretty arbitrary at the moment
     precedence=[])
 
-
-@pg.production("term : qualified_variable")
-@pg.production("term : variable")
-@pg.production("term : qualified_function")
-@pg.production("term : function")
-@pg.production("term : class")
-@pg.production("term : qualified_class")
-@pg.production("term : qualified_search")
-@pg.production("term : search")
+@pg.production("term : qualified")
+@pg.production("term : unqualified")
 @pg.production("term : term scope")
 def term(p):
     if len(p) > 1:
@@ -39,20 +32,22 @@ def scope(p):
     return [p[1]]
 
 
-@pg.production("qualified_variable : qualifier variable")
-@pg.production("qualified_variable : qualifier qualified_variable")
-@pg.production("qualified_function : qualifier function")
-@pg.production("qualified_function : qualifier qualified_function")
-@pg.production("qualified_class : qualifier class")
-@pg.production("qualified_class : qualifier qualified_class")
-@pg.production("qualified_search : qualifier search")
-@pg.production("qualified_search : qualifier qualified_search")
+
+@pg.production("qualified : qualifier unqualified")
+@pg.production("qualified : qualifier qualified")
 def qualified(p):
     if p[0] is None:
         p[1].qualifiers = None
     else:
         p[1].qualifiers.insert(0, p[0])
     return p[1]
+
+@pg.production("unqualified : variable")
+@pg.production("unqualified : class")
+@pg.production("unqualified : search")
+@pg.production("unqualified : function")
+def unqualified(p):
+    return p[0]
 
 
 @pg.production("qualifier : data DOUBLE_COLON")
@@ -67,10 +62,16 @@ def qualifier(p):
 @pg.production("function : data COLON parameter_list")
 @pg.production("function : COLON data parameter_list")
 @pg.production("function : COLON parameter_list")
+@pg.production("function : data COLON data template_parameter_list parameter_list")
+@pg.production("function : data COLON template_parameter_list parameter_list")
+@pg.production("function : COLON data template_parameter_list parameter_list")
+@pg.production("function : COLON template_parameter_list parameter_list")
 def function(p):
     name = None
     return_type = None
     for t in p[:-1]:
+        if isinstance(t, list):
+            continue
         if t.name == "COLON" and name is None:
             name = ".*"
         elif t.name == "DATA":
@@ -80,13 +81,28 @@ def function(p):
                 return_type = t.value
     if return_type is None:
         return_type = ".*"
+
+    template_parameter_list = None
+    if len(p) > 2 and isinstance(p[-2], list):
+        template_parameter_list = p[-2]
     parameter_list = p[-1]
-    return Function(name, return_type, parameter_list)
+    return Function(name=name, return_type=return_type,
+                    template_parameters=template_parameter_list,
+                    parameters=parameter_list)
 
 
 @pg.production("parameter_list : L_PAREN list_contents R_PAREN")
 @pg.production("parameter_list : L_PAREN R_PAREN")
 def parameter_list(p):
+    if len(p) == 2:
+        return []
+    else:
+        return p[1]
+
+
+@pg.production("template_parameter_list : L_ANGLE list_contents R_ANGLE")
+@pg.production("template_parameter_list : L_ANGLE R_ANGLE")
+def template_parameter_list(p):
     if len(p) == 2:
         return []
     else:

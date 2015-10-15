@@ -1,7 +1,7 @@
 """Synatx Aware Search
 
 Usage:
-  sas <pattern> <file>... [-l <lang>] [--verbose] [-d] [-e]
+  sas <pattern> <file>... [-l <lang>] [--verbose] [-d] [-e] [-f]
   sas (-h | --help)
   sas --version
 
@@ -11,6 +11,7 @@ Options:
   -l=<lang>     Set the search lang
   -e            Match expressions
   -d            Match declarations
+  -f            Show full matches (i.e., entire function rather than 1st line)
   --verbose     Show more info in output (e.g., AST)
 """
 
@@ -21,16 +22,23 @@ from docopt import docopt
 import linecache
 
 
-def grep_print(filename, line):
+def grep_print(filename, line, full):
     """ Print a cursor using a grep-like syntax
     """
-    print("{location}:{line}:{match}".format(
-        location=filename,
-        line=line,
-        match=linecache.getline(filename, line).strip()))
+    if not full:
+        print("{location}:{line}:{match}".format(
+            location=filename,
+            line=line,
+            match=linecache.getline(filename, line).strip()))
+    else:
+        for multiline in range(line[0], line[1]+1):
+            print("{location}:{line}:{match}".format(
+                location=filename,
+                line=multiline,
+                match=linecache.getline(filename, multiline).strip("\n")))
 
 
-def matches_from_pattern(config):
+def matches_from_pattern(config, full):
     find_candidates = None
 
     if not config.language or config.language == "cpp":
@@ -44,7 +52,10 @@ def matches_from_pattern(config):
         import pprint
         pprint.pprint(ast)
     for match in find_candidates(config, ast):
-        yield match[0][0]
+        if full:
+            yield (match[0][0], match[1][0])
+        else:
+            yield match[0][0]
 
 
 def main():
@@ -61,13 +72,14 @@ def main():
         raw_pattern=arguments["<pattern>"],
         language=arguments["-l"],
         mode=mode,
-        verbose=arguments["--verbose"]
+        verbose=arguments["--verbose"],
+        full=arguments["-f"]
     )
 
     for filename in arguments["<file>"]:
         config.filename = filename
-        for match in matches_from_pattern(config):
-            grep_print(filename, match)
+        for match in matches_from_pattern(config, config.full):
+            grep_print(filename, match, config.full)
 
 
 if __name__ == "__main__":

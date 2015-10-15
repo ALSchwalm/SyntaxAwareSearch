@@ -25,7 +25,7 @@ def test_all():
             case = parse_case(line)
             matches = list(matches_from_pattern(
                 Config(case.pattern, "cpp",
-                       filename=test_cpp_1)))
+                       filename=test_cpp_1), full=False))
             for line in case.lines:
                 if case.passes:
                     if line not in matches:

@@ -58,10 +58,23 @@ def matches_by_kinds(cursor, variable, kinds):
         match(variable.name, cursor.spelling)
 
 
-def matches_function_parameters(cursor, function):
-    cursor_parameters = list(cursor.get_arguments())
+def matches_function_parameters(cursor, function, template=False):
+    if not template:
+        cursor_parameters = list(cursor.get_arguments())
+        allowed_kinds = (CursorKind.PARM_DECL,)
+        function_parameters = function.parameters
+    else:
+        if function.template_parameters is None:
+            return True
+        allowed_kinds = (CursorKind.TEMPLATE_TYPE_PARAMETER,
+                         CursorKind.TEMPLATE_NON_TYPE_PARAMETER,
+                         CursorKind.TEMPLATE_TEMPLATE_PARAMETER)
+        cursor_parameters = [child for child in cursor.get_children()
+                             if child.kind in allowed_kinds]
+        function_parameters = function.template_parameters
+
     ellipses_active = False
-    for parameter in function.parameters:
+    for parameter in function_parameters:
         if isinstance(parameter, Token):
             ellipses_active = True
             continue
@@ -70,7 +83,7 @@ def matches_function_parameters(cursor, function):
 
         if not matches_by_kinds(cursor_parameters[0],
                                 parameter,
-                                (CursorKind.PARM_DECL,)):
+                                allowed_kinds):
             if not ellipses_active:
                 return False
             else:
@@ -129,7 +142,8 @@ def resolve_function(tu, function, config, root):
         if cursor.kind in allowed_kinds and \
            match(function.name, cursor.spelling) and \
            match(function.return_type, cursor.result_type.spelling) and \
-           matches_function_parameters(cursor, function):
+           matches_function_parameters(cursor, function) and \
+           matches_function_parameters(cursor, function, template=True):
             yield cursor
 
 

@@ -19,8 +19,12 @@ def term(p):
 
 
 @pg.production("class : POUND DATA")
+@pg.production("class : POUND DATA template_parameter_list")
 def class_decl(p):
-    return Class(p[1].value)
+    c = Class(p[1].value)
+    if len(p) > 2:
+        c.template_parameters = p[2]
+    return c
 
 
 @pg.production("scope : L_CURLY term R_CURLY")

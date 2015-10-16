@@ -39,9 +39,10 @@ class Variable(SASType):
 
 
 class Class(SASType):
-    def __init__(self, name=".*", qualifiers=[]):
+    def __init__(self, name=".*", qualifiers=[], template_parameters=[]):
         SASType.__init__(self, qualifiers)
         self.name = name
+        self.template_parameters = template_parameters
 
     def __repr__(self):
         return "Class(\"{}\", {}, {})".format(self.name,

@@ -58,23 +58,21 @@ def matches_by_kinds(cursor, variable, kinds):
         match(variable.name, cursor.spelling)
 
 
-def matches_function_parameters(cursor, function, template=False):
+def matches_parameters(cursor, parameters, template=False):
     if not template:
         cursor_parameters = list(cursor.get_arguments())
         allowed_kinds = (CursorKind.PARM_DECL,)
-        function_parameters = function.parameters
     else:
-        if function.template_parameters is None:
+        if parameters is None:
             return True
         allowed_kinds = (CursorKind.TEMPLATE_TYPE_PARAMETER,
                          CursorKind.TEMPLATE_NON_TYPE_PARAMETER,
                          CursorKind.TEMPLATE_TEMPLATE_PARAMETER)
         cursor_parameters = [child for child in cursor.get_children()
                              if child.kind in allowed_kinds]
-        function_parameters = function.template_parameters
 
     ellipses_active = False
-    for parameter in function_parameters:
+    for parameter in parameters:
         if isinstance(parameter, Token):
             ellipses_active = True
             continue
@@ -142,8 +140,9 @@ def resolve_function(tu, function, config, root):
         if cursor.kind in allowed_kinds and \
            match(function.name, cursor.spelling) and \
            match(function.return_type, cursor.result_type.spelling) and \
-           matches_function_parameters(cursor, function) and \
-           matches_function_parameters(cursor, function, template=True):
+           matches_parameters(cursor, function.parameters) and \
+           matches_parameters(cursor, function.template_parameters,
+                              template=True):
             yield cursor
 
 
@@ -171,6 +170,7 @@ def resolve_class(tu, class_t, config, root):
         allowed_kinds += []
     for cursor in resolve_qualifiers(tu, class_t.qualifiers, config, root):
         if match(class_t.name, cursor.spelling) and \
+           matches_parameters(cursor, class_t.template_parameters, template=True) and \
            cursor.kind in allowed_kinds:
             yield cursor
 

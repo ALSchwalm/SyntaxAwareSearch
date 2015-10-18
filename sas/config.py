@@ -13,10 +13,11 @@ class Config:
 
     def __init__(self, raw_pattern, language,
                  mode=MATCH_MODE.DECLARATION | MATCH_MODE.EXPRESSION,
-                 full=False, filename=None, verbose=False):
+                 full=False, color=False, filename=None, verbose=False):
         self.filename = filename
         self.raw_pattern = raw_pattern
         self.language = language
         self.verbose = verbose
         self.mode = mode
         self.full = full
+        self.color = color

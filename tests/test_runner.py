@@ -23,9 +23,8 @@ def test_all():
             if not line.strip() or line.startswith("#"):
                 continue
             case = parse_case(line)
-            matches = list(matches_from_pattern(
-                Config(case.pattern, "cpp",
-                       filename=test_cpp_1), full=False))
+            matches = [match[0][0] for match in matches_from_pattern(
+                Config(case.pattern, "cpp", filename=test_cpp_1))]
             for line in case.lines:
                 if case.passes:
                     if line not in matches:

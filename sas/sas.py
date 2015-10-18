@@ -1,7 +1,7 @@
 """Synatx Aware Search
 
 Usage:
-  sas <pattern> <file>... [-l <lang>] [--verbose] [-d] [-e] [-f]
+  sas [-l <lang>] [--verbose] [--color] [-dem] <pattern> <file>...
   sas (-h | --help)
   sas --version
 
@@ -11,34 +11,53 @@ Options:
   -l=<lang>     Set the search lang
   -e            Match expressions
   -d            Match declarations
-  -f            Show full matches (i.e., entire function rather than 1st line)
+  -m            Show full matches (i.e., entire function rather than 1st line)
+  --color       Highlight the matched text
   --verbose     Show more info in output (e.g., AST)
 """
 
+from __future__ import print_function
 from .lexer import lexer
 from .parser import parser
 from .config import Config
 from docopt import docopt
+from termcolor import colored
 import linecache
 
 
-def grep_print(filename, line, full):
+def grep_print(filename, extent, full, color, context=(0, 0)):
     """ Print a cursor using a grep-like syntax
     """
     if not full:
-        print("{location}:{line}:{match}".format(
-            location=filename,
-            line=line,
-            match=linecache.getline(filename, line).strip()))
+        if not color:
+            print("{location}:{line}:{match}".format(
+                location=filename,
+                line=extent[0][0],
+                match=linecache.getline(filename, extent[0][0]).strip("\n")))
+        else:
+            line = linecache.getline(filename, extent[0][0]).strip("\n")
+            pre_match = line[:extent[0][1]-1]
+            if extent[0][0] == extent[1][0]:
+                match = line[extent[0][1]-1:extent[1][1]-1]
+                post_match = line[extent[1][1]-1:]
+            else:
+                match = line[extent[0][1]-1:]
+                post_match = ""
+            print("{location}:{line}:{pre_match}".format(
+                location=filename,
+                line=extent[0][0],
+                pre_match=pre_match), end="")
+            print(colored(match, 'red', attrs=['bold']), end="")
+            print(post_match)
     else:
-        for multiline in range(line[0], line[1]+1):
+        for multiline in range(extent[0][0], extent[1][0]+1):
             print("{location}:{line}:{match}".format(
                 location=filename,
                 line=multiline,
                 match=linecache.getline(filename, multiline).strip("\n")))
 
 
-def matches_from_pattern(config, full):
+def matches_from_pattern(config):
     find_candidates = None
 
     if not config.language or config.language == "cpp":
@@ -52,10 +71,7 @@ def matches_from_pattern(config, full):
         import pprint
         pprint.pprint(ast)
     for match in find_candidates(config, ast):
-        if full:
-            yield (match[0][0], match[1][0])
-        else:
-            yield match[0][0]
+        yield match
 
 
 def main():
@@ -73,13 +89,14 @@ def main():
         language=arguments["-l"],
         mode=mode,
         verbose=arguments["--verbose"],
-        full=arguments["-f"]
+        full=arguments["-m"],
+        color=arguments["--color"]
     )
 
     for filename in arguments["<file>"]:
         config.filename = filename
-        for match in matches_from_pattern(config, config.full):
-            grep_print(filename, match, config.full)
+        for match in matches_from_pattern(config):
+            grep_print(filename, match, config.full, config.color)
 
 
 if __name__ == "__main__":

@@ -1,13 +1,15 @@
 """Synatx Aware Search
 
 Usage:
-  sas [-l <lang>] [--verbose] [--color] [-dem] <pattern> <file>...
+  sas [-l <lang>] [--verbose] [--color] [-Rrdem] <pattern> <path>...
   sas (-h | --help)
   sas --version
 
 Options:
   -h --help     Show this screen.
   --version     Show version.
+  -r            Search 'path' recursively (not following symbolic links)
+  -R            Search 'path' recursively (following symbolic links)
   -l=<lang>     Set the search lang
   -e            Match expressions
   -d            Match declarations
@@ -22,6 +24,8 @@ from .parser import parser
 from .config import Config
 from docopt import docopt
 from termcolor import colored
+from sys import exit
+import os
 import linecache
 
 
@@ -70,6 +74,7 @@ def matches_from_pattern(config):
     if config.verbose:
         import pprint
         pprint.pprint(ast)
+
     for match in find_candidates(config, ast):
         yield match
 
@@ -93,10 +98,26 @@ def main():
         color=arguments["--color"]
     )
 
-    for filename in arguments["<file>"]:
+    def search_file(filename):
         config.filename = filename
         for match in matches_from_pattern(config):
             grep_print(filename, match, config.full, config.color)
+
+    for filename in arguments["<path>"]:
+        if arguments["-R"] or arguments["-r"]:
+            if os.path.isfile(filename):
+                search_file(filename)
+            else:
+                followlinks = True if arguments["-R"] else False
+                for dirpath, subdirs, files in os.walk(filename,
+                                                       followlinks=followlinks):
+                    for file in files:
+                        search_file(os.path.join(dirpath, file))
+        else:
+            if os.path.isdir(filename):
+                exit("sas: {}: Is a directory".format(filename))
+            else:
+                search_file(filename)
 
 
 if __name__ == "__main__":

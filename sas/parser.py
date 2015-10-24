@@ -61,6 +61,10 @@ def qualifier(p):
         return None
     return p[0].value
 
+@pg.production("function : function attribute_list")
+def function_attr(p):
+    p[0].attributes = p[1]
+    return p[0]
 
 @pg.production("function : data COLON data parameter_list")
 @pg.production("function : data COLON parameter_list")
@@ -104,6 +108,15 @@ def parameter_list(p):
         return p[1]
 
 
+@pg.production("attribute_list : L_SQUARE data_list_contents R_SQUARE")
+@pg.production("attribute_list : L_SQUARE R_SQUARE")
+def attribute_list(p):
+    if len(p) == 2:
+        return []
+    else:
+        return p[1]
+
+
 @pg.production("template_parameter_list : L_ANGLE list_contents R_ANGLE")
 @pg.production("template_parameter_list : L_ANGLE R_ANGLE")
 def template_parameter_list(p):
@@ -111,6 +124,16 @@ def template_parameter_list(p):
         return []
     else:
         return p[1]
+
+
+@pg.production("data_list_contents : data COMMA data_list_contents")
+@pg.production("data_list_contents : data")
+def data_list_contents(p):
+    if len(p) == 1:
+        return [p[0].value]
+    else:
+        p[2].insert(0, p[0].value)
+        return p[2]
 
 
 @pg.production("list_contents : ELLIPSES")
@@ -123,6 +146,12 @@ def list_contents(p):
     else:
         p[2].insert(0, p[0])
         return p[2]
+
+
+@pg.production("variable : variable attribute_list")
+def variable_attr(p):
+    p[0].attributes = p[1]
+    return p[0]
 
 
 @pg.production("variable : data COLON data")

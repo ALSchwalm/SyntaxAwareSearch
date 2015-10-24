@@ -1,5 +1,6 @@
 from clang.cindex import TranslationUnit
-from clang.cindex import CursorKind
+from clang.cindex import CursorKind, AccessSpecifier, StorageClass
+from clang.cindex import conf
 from .utils import get_cursors, get_root_cursors
 from ..wrappers import *
 from ..config import Config
@@ -56,6 +57,28 @@ def matches_by_kinds(cursor, variable, kinds):
     return cursor.kind in kinds and \
         match(variable.type, cursor.type.spelling) and \
         match(variable.name, cursor.spelling)
+
+
+def matches_attributes(cursor, attributes):
+    attributes = [attr.lower() for attr in attributes]
+    if "virtual" in attributes and not conf.lib.clang_CXXMethod_isVirtual(cursor):
+        return False
+    if "static" in attributes and (not cursor.is_static_method() and
+                                   not cursor.storage_class == StorageClass.STATIC):
+        return False
+    if "const" in attributes and not cursor.is_const_method():
+        return False
+
+    access_map = {
+        "public": AccessSpecifier.PUBLIC,
+        "protected": AccessSpecifier.PROTECTED,
+        "private": AccessSpecifier.PRIVATE,
+    }
+    access_specifier = cursor.access_specifier
+    for attr in attributes:
+        if attr in access_map and access_specifier != access_map[attr]:
+            return False
+    return True
 
 
 def matches_parameters(cursor, parameters, template=False):
@@ -142,7 +165,8 @@ def resolve_function(tu, function, config, root):
            match(function.return_type, cursor.result_type.spelling) and \
            matches_parameters(cursor, function.parameters) and \
            matches_parameters(cursor, function.template_parameters,
-                              template=True):
+                              template=True) and \
+           matches_attributes(cursor, function.attributes):
             yield cursor
 
 
@@ -155,7 +179,8 @@ def resolve_variable(tu, variable, config, root):
                           CursorKind.MEMBER_REF_EXPR]
     for cursor in resolve_qualifiers(tu, variable.qualifiers, config, root):
         if match(variable.name, cursor.spelling) and \
-           matches_by_kinds(cursor, variable, allowed_kinds):
+           matches_by_kinds(cursor, variable, allowed_kinds) and \
+           matches_attributes(cursor, variable.attributes):
             yield cursor
 
 

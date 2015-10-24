@@ -62,11 +62,8 @@ def grep_print(filename, extent, full, color, context=(0, 0)):
 
 
 def matches_from_pattern(config):
-    find_candidates = None
-
     if not config.language or config.language == "cpp":
         from .backends.cpp import find_candidates
-        find_candidates = find_candidates
 
     lexed = lexer.lex(config.raw_pattern)
     ast = parser.parse(lexed)

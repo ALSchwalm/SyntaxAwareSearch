@@ -6,35 +6,41 @@ class SASType(object):
 
 class Function(SASType):
     def __init__(self, name=".*", return_type=".*",
-                 parameters=[], qualifiers=[], template_parameters=[]):
+                 parameters=[], qualifiers=[], template_parameters=[],
+                 attributes=[]):
         SASType.__init__(self, qualifiers)
         self.name = name
         self.return_type = return_type
         self.parameters = parameters
         self.template_parameters = template_parameters
+        self.attributes = attributes
 
     def __repr__(self):
         return "Function(name=\"{}\", return_type=\"{}\", " \
                "template_parameters={}, parameters={}, qualifiers={}, " \
+               "attributes={}, " \
                "contents={})".format(
                    self.name,
                    self.return_type,
                    self.template_parameters,
                    self.parameters,
                    self.qualifiers,
+                   self.attributes,
                    self.contents
                )
 
 
 class Variable(SASType):
-    def __init__(self, name=".*", type=".*", qualifiers=[]):
+    def __init__(self, name=".*", type=".*", qualifiers=[], attributes=[]):
         SASType.__init__(self, qualifiers)
         self.name = name
         self.type = type
+        self.attributes = attributes
 
     def __repr__(self):
-        return "Variable(\"{}\", \"{}\", {}, {})".format(
+        return "Variable(\"{}\", \"{}\", {}, {}, {})".format(
             self.name, self.type, self.qualifiers,
+            self.attributes,
             self.contents)
 
 

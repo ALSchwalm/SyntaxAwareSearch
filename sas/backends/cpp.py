@@ -1,18 +1,21 @@
-from clang.cindex import TranslationUnit
 from clang.cindex import CursorKind, AccessSpecifier, StorageClass
 from clang.cindex import conf
+from clang.cindex import Index, TranslationUnit
 from .utils import get_cursors, get_root_cursors
 from ..wrappers import *
 from ..config import Config
 from re import match
 from rply import Token
 
+SAS_Index = Index.create(excludeDecls=True)
+
 
 def find_candidates(config, ast):
     """ Find patterns in 'filename' matching 'ast'
     """
 
-    tu = TranslationUnit.from_source(config.filename, ["-std=c++11"])
+    tu = SAS_Index.parse(config.filename, ["-std=c++11"],
+                         options=TranslationUnit.PARSE_PRECOMPILED_PREAMBLE)
     for cursor in resolve_ast(tu, ast, config):
         start, end = cursor.extent.start, cursor.extent.end
         yield ((start.line, start.column),

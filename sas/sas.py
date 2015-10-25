@@ -1,13 +1,14 @@
 """Synatx Aware Search
 
 Usage:
-  sas [-l <lang>] [--verbose] [--color] [-Rrdem] <pattern> <path>...
+  sas [-l <lang>] [--verbose] [--color] [-aRrdem] <pattern> <path>...
   sas (-h | --help)
   sas --version
 
 Options:
   -h --help     Show this screen.
   --version     Show version.
+  -a            Search all files (don't exclude unrelated file extensions)
   -r            Search 'path' recursively (not following symbolic links)
   -R            Search 'path' recursively (following symbolic links)
   -l=<lang>     Set the search lang
@@ -62,7 +63,7 @@ def grep_print(filename, extent, full, color, context=(0, 0)):
 
 
 def matches_from_pattern(config):
-    if not config.language or config.language == "cpp":
+    if config.language == "cpp":
         from .backends.cpp import find_candidates
 
     lexed = lexer.lex(config.raw_pattern)
@@ -88,7 +89,8 @@ def main():
 
     config = Config(
         raw_pattern=arguments["<pattern>"],
-        language=arguments["-l"],
+        language=arguments["-l"] or "cpp",
+        search_all=arguments["-a"],
         mode=mode,
         verbose=arguments["--verbose"],
         full=arguments["-m"],
@@ -97,8 +99,12 @@ def main():
 
     def search_file(filename):
         config.filename = filename
-        for match in matches_from_pattern(config):
-            grep_print(filename, match, config.full, config.color)
+        try:
+            for match in matches_from_pattern(config):
+                grep_print(filename, match, config.full, config.color)
+        except Exception as e:
+            print("sas: An unexpected error occured while searching `{}`: {}".format(
+                filename, str(e)))
 
     for filename in arguments["<path>"]:
         if arguments["-R"] or arguments["-r"]:
@@ -109,7 +115,12 @@ def main():
                 for dirpath, subdirs, files in os.walk(filename,
                                                        followlinks=followlinks):
                     for file in files:
-                        search_file(os.path.join(dirpath, file))
+                        if config.search_all:
+                            search_file(os.path.join(dirpath, file))
+                        else:
+                            name, extension = os.path.splitext(file)
+                            if extension and extension[1:] in config.allowed_extensions:
+                                search_file(os.path.join(dirpath, file))
         else:
             if os.path.isdir(filename):
                 exit("sas: {}: Is a directory".format(filename))

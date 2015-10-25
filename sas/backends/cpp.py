@@ -112,7 +112,8 @@ def matches_parameters(cursor, parameters, template=False):
 
         if not matches_by_kinds(cursor_parameters[0],
                                 parameter,
-                                allowed_kinds):
+                                allowed_kinds,
+                                config):
             if not ellipses_active:
                 return False
             else:
@@ -187,7 +188,7 @@ def resolve_variable(tu, variable, config, root):
                           CursorKind.MEMBER_REF_EXPR]
     for cursor in resolve_qualifiers(tu, variable.qualifiers, config, root):
         if match(variable.name, cursor.spelling) and \
-           matches_by_kinds(cursor, variable, allowed_kinds) and \
+           matches_by_kinds(cursor, variable, allowed_kinds, config) and \
            matches_attributes(cursor, variable.attributes):
             yield cursor
 

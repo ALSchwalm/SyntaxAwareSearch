@@ -2,6 +2,8 @@
 # It is based on the original LLVM file
 
 from clang.cindex import Cursor
+from clang.cindex import conf
+from clang.cindex import callbacks
 import re
 
 
@@ -22,16 +24,18 @@ def get_cursors(source, regex=None, filename=None, root=None):
             return True
         return False
 
-    def recursive_children(cursor):
-        for child in cursor.get_children():
-            if filename is not None and filename != str(child.location.file):
-                continue
-            for grandchild in recursive_children(child):
-                if is_valid(grandchild):
-                    yield grandchild
-            if is_valid(child):
-                yield child
-    for cursor in recursive_children(root_cursor):
+    def visitor(child, parent, children):
+        # Create reference to TU so it isn't GC'd before Cursor.
+        child._tu = root_cursor.translation_unit
+        if filename is not None and filename != str(child.location.file):
+            return 1  # continue
+        elif is_valid(child):
+            children.append(child)
+        return 2  # recurse
+    children = []
+    conf.lib.clang_visitChildren(root_cursor, callbacks['cursor_visit'](visitor),
+                                 children)
+    for cursor in children:
         yield cursor
 
 

@@ -8,7 +8,8 @@ def enum(**enums):
 class Config:
     MATCH_MODE = enum(
         DECLARATION=1 << 0,
-        EXPRESSION=1 << 1
+        EXPRESSION=1 << 1,
+        DEFINITION=1 << 2
     )
 
     EXTENSION_MAP = {
@@ -19,7 +20,8 @@ class Config:
     def __init__(self, raw_pattern, language,
                  search_all=False,
                  mode=MATCH_MODE.DECLARATION | MATCH_MODE.EXPRESSION,
-                 full=False, color=False, filename=None, verbose=False):
+                 full=False, color=False, filename=None, strict=False,
+                 verbose=False):
         self.filename = filename
         self.raw_pattern = raw_pattern
         self.language = language
@@ -28,6 +30,7 @@ class Config:
         self.full = full
         self.color = color,
         self.search_all = search_all
+        self.strict = strict
 
     @property
     def allowed_extensions(self):

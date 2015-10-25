@@ -1,7 +1,7 @@
 """Synatx Aware Search
 
 Usage:
-  sas [-l <lang>] [--verbose] [--color] [-aRrdem] <pattern> <path>...
+  sas [-l <lang>] [--verbose] [--color] [-asRrdeDm] <pattern> <path>...
   sas (-h | --help)
   sas --version
 
@@ -14,7 +14,9 @@ Options:
   -l=<lang>     Set the search lang
   -e            Match expressions
   -d            Match declarations
+  -D            Only match declarations that are also definitions (implies -d)
   -m            Show full matches (i.e., entire function rather than 1st line)
+  -s            Enable strict parsing
   --color       Highlight the matched text
   --verbose     Show more info in output (e.g., AST)
 """
@@ -80,12 +82,14 @@ def matches_from_pattern(config):
 def main():
     arguments = docopt(__doc__, version='sas v0.2')
     mode = Config.MATCH_MODE.DECLARATION | Config.MATCH_MODE.EXPRESSION
-    if arguments["-d"] or arguments["-e"]:
+    if arguments["-d"] or arguments["-e"] or arguments["-D"]:
         mode = 0
-        if arguments["-d"]:
+        if arguments["-d"] or arguments["-D"]:
             mode |= Config.MATCH_MODE.DECLARATION
         if arguments["-e"]:
             mode |= Config.MATCH_MODE.EXPRESSION
+        if arguments["-D"]:
+            mode |= Config.MATCH_MODE.DEFINITION
 
     config = Config(
         raw_pattern=arguments["<pattern>"],
@@ -94,7 +98,8 @@ def main():
         mode=mode,
         verbose=arguments["--verbose"],
         full=arguments["-m"],
-        color=arguments["--color"]
+        color=arguments["--color"],
+        strict=arguments["-s"]
     )
 
     def search_file(filename):

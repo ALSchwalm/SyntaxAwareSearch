@@ -14,7 +14,10 @@ def find_candidates(config, ast):
     """ Find patterns in 'filename' matching 'ast'
     """
 
-    tu = SAS_Index.parse(config.filename, ["-std=c++11"],
+    flags = "-std=c++11"
+    if not config.strict:
+        flags += " -x=c++-cpp-output"
+    tu = SAS_Index.parse(config.filename, [flags],
                          options=TranslationUnit.PARSE_PRECOMPILED_PREAMBLE)
     for cursor in resolve_ast(tu, ast, config):
         start, end = cursor.extent.start, cursor.extent.end
@@ -52,11 +55,13 @@ def resolve_ast(tu, ast, config, root=None):
             for cursor in resolve_basic_search(tu, ast, config, root):
                 yield cursor
     for result in inner_resolve():
-        if has_required_children(tu, result, ast.contents, config):
+        if config.mode & Config.MATCH_MODE.DEFINITION and not result.is_definition():
+            continue
+        elif has_required_children(tu, result, ast.contents, config):
             yield result
 
 
-def matches_by_kinds(cursor, variable, kinds):
+def matches_by_kinds(cursor, variable, kinds, config):
     return cursor.kind in kinds and \
         match(variable.type, cursor.type.spelling) and \
         match(variable.name, cursor.spelling)

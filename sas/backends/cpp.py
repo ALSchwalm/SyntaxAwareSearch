@@ -14,10 +14,10 @@ def find_candidates(config, ast):
     """ Find patterns in 'filename' matching 'ast'
     """
 
-    flags = "-std=c++11"
+    flags = ["-std=c++11"]
     if not config.strict:
-        flags += " -x=c++-cpp-output"
-    tu = SAS_Index.parse(config.filename, [flags],
+        flags.append("-nostdinc++")
+    tu = SAS_Index.parse(config.filename, flags,
                          options=TranslationUnit.PARSE_PRECOMPILED_PREAMBLE)
     for cursor in resolve_ast(tu, ast, config):
         start, end = cursor.extent.start, cursor.extent.end
@@ -89,7 +89,7 @@ def matches_attributes(cursor, attributes):
     return True
 
 
-def matches_parameters(cursor, parameters, template=False):
+def matches_parameters(cursor, parameters, config, template=False):
     if not template:
         cursor_parameters = list(cursor.get_arguments())
         allowed_kinds = (CursorKind.PARM_DECL,)
@@ -101,11 +101,14 @@ def matches_parameters(cursor, parameters, template=False):
                          CursorKind.TEMPLATE_TEMPLATE_PARAMETER)
         cursor_parameters = [child for child in cursor.get_children()
                              if child.kind in allowed_kinds]
-
+    print([(parameter.spelling, parameter.type.spelling) for parameter in cursor_parameters])
     ellipses_active = False
-    for parameter in parameters:
+    i = 0
+    while i < len(parameters):
+        parameter = parameters[i]
         if isinstance(parameter, Token):
             ellipses_active = True
+            i += 1
             continue
         if len(cursor_parameters) == 0:
             return False
@@ -118,9 +121,11 @@ def matches_parameters(cursor, parameters, template=False):
                 return False
             else:
                 cursor_parameters = cursor_parameters[1:]
+                continue
         else:
             cursor_parameters = cursor_parameters[1:]
             ellipses_active = False
+        i += 1
     if len(cursor_parameters) and not ellipses_active:
         return False
     return True
@@ -172,8 +177,9 @@ def resolve_function(tu, function, config, root):
         if cursor.kind in allowed_kinds and \
            match(function.name, cursor.spelling) and \
            match(function.return_type, cursor.result_type.spelling) and \
-           matches_parameters(cursor, function.parameters) and \
+           matches_parameters(cursor, function.parameters, config) and \
            matches_parameters(cursor, function.template_parameters,
+                              config,
                               template=True) and \
            matches_attributes(cursor, function.attributes):
             yield cursor

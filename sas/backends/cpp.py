@@ -101,7 +101,6 @@ def matches_parameters(cursor, parameters, config, template=False):
                          CursorKind.TEMPLATE_TEMPLATE_PARAMETER)
         cursor_parameters = [child for child in cursor.get_children()
                              if child.kind in allowed_kinds]
-    print([(parameter.spelling, parameter.type.spelling) for parameter in cursor_parameters])
     ellipses_active = False
     i = 0
     while i < len(parameters):

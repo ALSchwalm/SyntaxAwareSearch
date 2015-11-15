@@ -1,19 +1,22 @@
 #include <boost/program_options.hpp>
+#include <boost/filesystem.hpp>
 
 #include "parser.hpp"
 #include "search.hpp"
 
 namespace po = boost::program_options;
+namespace fs = boost::filesystem;
 
 int main(int argc, char** argv) {
     SASParser g;
 
-    po::options_description desc("Allowed options");
-    desc.add_options()                                                   //
-        ("help", "Print help messages")                                  //
-        ("search-string", po::value<std::string>(), "The search string") //
-        ("paths", po::value<std::vector<std::string>>(), "Paths to search");
-    ;
+    po::options_description desc(
+        "Usage: sas [options] search-string path [path...]");
+    desc.add_options()                                                      //
+        ("help", "Print help messages")                                     //
+        ("search-string", po::value<std::string>(), "The search string")    //
+        ("paths", po::value<std::vector<std::string>>(), "Paths to search") //
+        ("recursive,r", "Read all files under each directory recursively");
 
     po::positional_options_description p;
     p.add("search-string", 1);
@@ -43,15 +46,20 @@ int main(int argc, char** argv) {
 
     if (r && iter == end) {
         for (const auto& path : paths) {
-            auto Idx = clang_createIndex(0, 0);
-            const char* args[] = {""};
-            auto TU =
-                clang_createTranslationUnitFromSourceFile(Idx, path.c_str(), 0,
-                                                          args, 0, 0);
-
-            boost::apply_visitor(TermSearchVisitor(TU), term);
-
-            clang_disposeTranslationUnit(TU);
+            if (fs::is_directory(path)) {
+                if (!vm.count("recursive")) {
+                    std::cerr << "sas: " << path << ": Is a directory"
+                              << std::endl;
+                    continue;
+                } else {
+                    for (fs::recursive_directory_iterator iter(path), end;
+                         iter != end; ++iter) {
+                        search_file(*iter, term);
+                    }
+                }
+            } else {
+                search_file(path, term);
+            }
         }
     } else {
         std::cout << "-------------------------\n";

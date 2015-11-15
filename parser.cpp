@@ -8,16 +8,18 @@
 SASParser::SASParser() : SASParser::base_type(term) {
     using ascii::char_;
     using qi::lit;
+    using qi::eps;
     using namespace qi::labels; // _val
 
-    name %= +(char_ - char_("/:(),")) | '/' >> +(char_ - '/') >> '/';
+    name %= +(char_ - char_("/:(),")) | '/' >> +(char_ - '/') >> '/' |
+            eps[_val = ".*"];
     parameter %= (-name >> ':' >> -name) | lit("...")[_val = Ellipses{}];
     function %= -name >> ':' >> -name >> '(' >> -(parameter % ',') >> ')';
     variable %= -name >> ':' >> -name;
 
     term %= function | variable;
 
-    BOOST_SPIRIT_DEBUG_NODES((term)(function)(variable)(name)(parameter));
+    // BOOST_SPIRIT_DEBUG_NODES((term)(function)(variable)(name)(parameter));
 }
 
 std::ostream& operator<<(std::ostream& stream, const Function& func) {

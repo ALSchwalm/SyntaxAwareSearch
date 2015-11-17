@@ -62,7 +62,7 @@ struct SASParser
     qi::rule<Iterator, Function(), ascii::space_type> function;
     qi::rule<Iterator, Variable(), ascii::space_type> variable;
     qi::rule<Iterator, FunctionParameter(), ascii::space_type> parameter;
-    qi::rule<Iterator, std::string(), ascii::space_type> name;
+    qi::rule<Iterator, std::string(), ascii::space_type> data;
 };
 
 #endif

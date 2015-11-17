@@ -57,6 +57,12 @@ bool is_within_header(CXCursor cursor, const std::string& root_filename) {
     return false;
 }
 
+bool allowed_match(CXCursor cursor, const po::variables_map& config) {
+    if (config.count("definitions") && !clang_isCursorDefinition(cursor))
+        return false;
+    return true;
+}
+
 template <typename T>
 bool matches_by_kind(CXCursor cursor, const T& variable,
                      std::set<CXCursorKind> kinds) {
@@ -111,11 +117,12 @@ bool matches_parameters(CXCursor cursor,
 }
 }
 
-void search_file(const char* file, Term& term) {
+void search_file(const char* file, Term& term,
+                 const po::variables_map& config) {
     auto p = boost::filesystem::path(file);
     auto extension = boost::filesystem::extension(p);
-    if (extension != ".cpp" && extension != ".c" && extension != ".h" &&
-        extension != ".hpp") {
+    if (!config.count("search-all-extensions") && extension != ".cpp" &&
+        extension != ".c" && extension != ".h" && extension != ".hpp") {
         return;
     }
     auto Idx = clang_createIndex(0, 0);
@@ -123,18 +130,22 @@ void search_file(const char* file, Term& term) {
     auto TU =
         clang_createTranslationUnitFromSourceFile(Idx, file, 0, args, 0, 0);
 
-    boost::apply_visitor(TermSearchVisitor(TU, file), term);
+    boost::apply_visitor(TermSearchVisitor(TU, file, config), term);
     clang_disposeTranslationUnit(TU);
 }
 
 void TermSearchVisitor::operator()(Function& func) const {
     std::regex name_regex{func.name};
     std::regex return_type_regex{func.return_type};
-    std::set<CXCursorKind> allowed_kinds = {CXCursor_FunctionDecl,
-                                            CXCursor_CXXMethod,
-                                            CXCursor_FunctionTemplate,
-                                            CXCursor_Constructor,
-                                            CXCursor_Destructor};
+    std::set<CXCursorKind> allowed_kinds;
+    if (m_config.count("declarations")) {
+        allowed_kinds.insert({CXCursor_FunctionDecl, CXCursor_CXXMethod,
+                              CXCursor_FunctionTemplate, CXCursor_Constructor,
+                              CXCursor_Destructor});
+    }
+    if (m_config.count("expressions")) {
+        allowed_kinds.insert(CXCursor_CallExpr);
+    }
 
     auto data = std::make_tuple(this, func, name_regex, return_type_regex,
                                 allowed_kinds);
@@ -160,6 +171,7 @@ void TermSearchVisitor::operator()(Function& func) const {
         auto type_spelling = ScopedString(clang_getTypeSpelling(result_type));
 
         if (allowed_kinds.count(kind) &&
+            allowed_match(cursor, pthis->m_config) &&
             std::regex_match(spelling.str(), name_regex) &&
             std::regex_match(type_spelling.str(), return_type_regex) &&
             matches_parameters(cursor, func.parameters)) {
@@ -176,7 +188,13 @@ void TermSearchVisitor::operator()(Function& func) const {
 void TermSearchVisitor::operator()(Variable& var) const {
     std::regex name_regex{var.name};
     std::regex type_regex{var.type};
-    std::set<CXCursorKind> allowed_kinds = {CXCursor_VarDecl};
+    std::set<CXCursorKind> allowed_kinds;
+    if (m_config.count("declarations")) {
+        allowed_kinds.insert(CXCursor_VarDecl);
+    }
+    if (m_config.count("expressions")) {
+        allowed_kinds.insert({CXCursor_DeclRefExpr, CXCursor_MemberRefExpr});
+    }
 
     auto data =
         std::make_tuple(this, var, name_regex, type_regex, allowed_kinds);
@@ -202,6 +220,7 @@ void TermSearchVisitor::operator()(Variable& var) const {
         auto type_spelling = ScopedString(clang_getTypeSpelling(result_type));
 
         if (allowed_kinds.count(kind) &&
+            allowed_match(cursor, pthis->m_config) &&
             std::regex_match(spelling.str(), name_regex) &&
             std::regex_match(type_spelling.str(), type_regex)) {
             print_match(pthis->m_root_filename.c_str(),

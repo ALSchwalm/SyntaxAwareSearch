@@ -11,11 +11,11 @@ SASParser::SASParser() : SASParser::base_type(term) {
     using qi::eps;
     using namespace qi::labels; // _val
 
-    name %= +(char_ - char_("/:(),")) | '/' >> +(char_ - '/') >> '/' |
+    data %= +(char_ - char_("/:(),")) | '/' >> +(char_ - '/') >> '/' |
             eps[_val = ".*"];
-    parameter %= (-name >> ':' >> -name) | lit("...")[_val = Ellipses{}];
-    function %= -name >> ':' >> -name >> '(' >> -(parameter % ',') >> ')';
-    variable %= -name >> ':' >> -name;
+    parameter %= (-data >> ':' >> -data) | lit("...")[_val = Ellipses{}];
+    function %= -data >> ':' >> -data >> '(' >> -(parameter % ',') >> ')';
+    variable %= -data >> ':' >> -data;
 
     term %= function | variable;
 

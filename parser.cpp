@@ -1,3 +1,6 @@
+#define BOOST_SPIRIT_DEBUG
+
+#include <boost/spirit/include/phoenix.hpp>
 #include <boost/spirit/include/phoenix_core.hpp>
 #include <boost/spirit/include/phoenix_operator.hpp>
 #include <boost/spirit/include/phoenix_fusion.hpp>
@@ -9,17 +12,28 @@ SASParser::SASParser() : SASParser::base_type(term) {
     using ascii::char_;
     using qi::lit;
     using qi::eps;
+    using boost::phoenix::construct;
     using namespace qi::labels; // _val
 
-    data %= +(char_ - char_("/:(),")) | '/' >> +(char_ - '/') >> '/' |
-            eps[_val = ".*"];
-    parameter %= (-data >> ':' >> -data) | lit("...")[_val = Ellipses{}];
-    function %= -data >> ':' >> -data >> '(' >> -(parameter % ',') >> ')';
-    variable %= -data >> ':' >> -data;
+    required_data %= +(char_ - char_("#/:(),")) | '/' >> +(char_ - '/') >> '/';
+    data %= required_data | eps[_val = ".*"];
+
+    parameter %= (data >> ':' >> data) | lit("...")[_val = Ellipses{}];
+    qualifier = (required_data[_val = construct<Namespace>(_1)]) |
+                ("#" >> required_data[_val = construct<Class>(_1)]);
+
+    qualifiers %= qualifier >> *("::" >> qualifier >> !(":" >> data)) >> "::" |
+                  eps[_val = std::vector<Qualifier>{}];
+
+    function %=
+        qualifiers >> data >> ':' >> data >> '(' >> -(parameter % ',') >> ')';
+
+    variable %= qualifiers >> data >> ':' >> data;
 
     term %= function | variable;
 
-    // BOOST_SPIRIT_DEBUG_NODES((term)(function)(variable)(name)(parameter));
+    BOOST_SPIRIT_DEBUG_NODES(
+        (term)(function)(variable)(data)(parameter)(qualifiers));
 }
 
 std::ostream& operator<<(std::ostream& stream, const Function& func) {
@@ -45,5 +59,15 @@ std::ostream& operator<<(std::ostream& stream, Ellipses) {
 
 std::ostream& operator<<(std::ostream& stream, const Variable& var) {
     stream << var.type << " " << var.name;
+    return stream;
+}
+
+std::ostream& operator<<(std::ostream& stream, const Namespace& ns) {
+    stream << ns.name;
+    return stream;
+}
+
+std::ostream& operator<<(std::ostream& stream, const Class& cls) {
+    stream << cls.name;
     return stream;
 }

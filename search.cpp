@@ -38,6 +38,7 @@ void print_match(const char* filename, CXSourceRange extent) {
 
 struct ScopedString {
     ScopedString(CXString _str) : cx_str{_str} {}
+    ScopedString(const ScopedString&) = delete;
     ~ScopedString() { clang_disposeString(cx_str); }
 
     const char* str() const { return clang_getCString(cx_str); }
@@ -50,7 +51,7 @@ bool is_within_header(CXCursor cursor, const std::string& root_filename) {
     CXFile file;
     unsigned int line, column, offset;
     clang_getSpellingLocation(location, &file, &line, &column, &offset);
-    auto filename = ScopedString(clang_getFileName(file));
+    ScopedString filename(clang_getFileName(file));
     if (filename.str() && root_filename != filename.str()) {
         return true;
     }
@@ -69,12 +70,75 @@ bool matches_by_kind(CXCursor cursor, const T& variable,
     // TODO: store this in the parameter?
     std::regex type_regex{variable.type};
     std::regex name_regex{variable.name};
-    auto type_spelling =
-        ScopedString(clang_getTypeSpelling(clang_getCursorType(cursor)));
-    auto spelling = ScopedString(clang_getCursorSpelling(cursor));
+
+    ScopedString type_spelling(
+        clang_getTypeSpelling(clang_getCursorType(cursor)));
+    ScopedString spelling(clang_getCursorSpelling(cursor));
     return kinds.count(clang_getCursorKind(cursor)) &&
            std::regex_match(type_spelling.str(), type_regex) &&
            std::regex_match(spelling.str(), name_regex);
+}
+
+struct QualifierNameVisitor : boost::static_visitor<std::string> {
+    template <typename T>
+    std::string operator()(const T& qualifier) const {
+        return qualifier.name;
+    }
+};
+
+struct QualifierKindVisitor : boost::static_visitor<std::set<CXCursorKind>> {
+    std::set<CXCursorKind> operator()(Namespace) const {
+        return {CXCursor_Namespace};
+    }
+    std::set<CXCursorKind> operator()(Class) const {
+        return {CXCursor_StructDecl, CXCursor_UnionDecl, CXCursor_ClassDecl};
+    }
+};
+
+template <typename T>
+bool matches_qualifiers(CXCursor cursor, const T& t) {
+    if (t.qualifiers.empty()) {
+        return true;
+    }
+
+    CXCursor current = clang_getCursorSemanticParent(cursor);
+    std::size_t qualifier_num = t.qualifiers.size() - 1;
+    std::set<CXCursorKind> matching_kinds =
+        boost::apply_visitor(QualifierKindVisitor(),
+                             t.qualifiers[qualifier_num]);
+    std::set<CXCursorKind> disallowed_kinds = {CXCursor_FunctionDecl,
+                                               CXCursor_CXXMethod,
+                                               CXCursor_FunctionTemplate,
+                                               CXCursor_Constructor,
+                                               CXCursor_Destructor};
+
+    while (clang_getCursorKind(current) != CXCursor_TranslationUnit) {
+        auto kind = clang_getCursorKind(current);
+        if (disallowed_kinds.count(kind)) {
+            return false;
+        }
+        if (matching_kinds.count(kind)) {
+            const auto& current_qualifier = t.qualifiers[qualifier_num];
+            auto qualifier_name =
+                boost::apply_visitor(QualifierNameVisitor(), current_qualifier);
+            std::regex name_regex{qualifier_name};
+            ScopedString spelling(clang_getCursorSpelling(current));
+            if (!std::regex_match(spelling.str(), name_regex)) {
+                return false;
+            } else {
+                if (qualifier_num == 0) {
+                    return true;
+                }
+                --qualifier_num;
+                matching_kinds =
+                    boost::apply_visitor(QualifierKindVisitor(),
+                                         t.qualifiers[qualifier_num]);
+            }
+        }
+        current = clang_getCursorSemanticParent(current);
+    }
+
+    return false;
 }
 
 bool matches_parameters(CXCursor cursor,
@@ -165,13 +229,14 @@ void TermSearchVisitor::operator()(Function& func) const {
         auto& return_type_regex = std::get<3>(*data_tuple);
         auto& allowed_kinds = std::get<4>(*data_tuple);
 
-        auto spelling = ScopedString(clang_getCursorSpelling(cursor));
         auto kind = clang_getCursorKind(cursor);
         auto result_type = clang_getCursorResultType(cursor);
-        auto type_spelling = ScopedString(clang_getTypeSpelling(result_type));
+        ScopedString spelling(clang_getCursorSpelling(cursor));
+        ScopedString type_spelling(clang_getTypeSpelling(result_type));
 
         if (allowed_kinds.count(kind) &&
             allowed_match(cursor, pthis->m_config) &&
+            matches_qualifiers(cursor, func) &&
             std::regex_match(spelling.str(), name_regex) &&
             std::regex_match(type_spelling.str(), return_type_regex) &&
             matches_parameters(cursor, func.parameters)) {
@@ -214,13 +279,14 @@ void TermSearchVisitor::operator()(Variable& var) const {
         auto& type_regex = std::get<3>(*data_tuple);
         auto& allowed_kinds = std::get<4>(*data_tuple);
 
-        auto spelling = ScopedString(clang_getCursorSpelling(cursor));
         auto kind = clang_getCursorKind(cursor);
         auto result_type = clang_getCursorType(cursor);
-        auto type_spelling = ScopedString(clang_getTypeSpelling(result_type));
+        ScopedString spelling(clang_getCursorSpelling(cursor));
+        ScopedString type_spelling(clang_getTypeSpelling(result_type));
 
         if (allowed_kinds.count(kind) &&
             allowed_match(cursor, pthis->m_config) &&
+            matches_qualifiers(cursor, var) &&
             std::regex_match(spelling.str(), name_regex) &&
             std::regex_match(type_spelling.str(), type_regex)) {
             print_match(pthis->m_root_filename.c_str(),

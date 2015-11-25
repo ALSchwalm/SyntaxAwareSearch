@@ -106,17 +106,9 @@ bool matches_qualifiers(CXCursor cursor, const T& t) {
     std::set<CXCursorKind> matching_kinds =
         boost::apply_visitor(QualifierKindVisitor(),
                              t.qualifiers[qualifier_num]);
-    std::set<CXCursorKind> disallowed_kinds = {CXCursor_FunctionDecl,
-                                               CXCursor_CXXMethod,
-                                               CXCursor_FunctionTemplate,
-                                               CXCursor_Constructor,
-                                               CXCursor_Destructor};
 
     while (clang_getCursorKind(current) != CXCursor_TranslationUnit) {
         auto kind = clang_getCursorKind(current);
-        if (disallowed_kinds.count(kind)) {
-            return false;
-        }
         if (matching_kinds.count(kind)) {
             const auto& current_qualifier = t.qualifiers[qualifier_num];
             auto qualifier_name =
@@ -242,6 +234,7 @@ void TermSearchVisitor::operator()(Function& func) const {
             matches_parameters(cursor, func.parameters)) {
             print_match(pthis->m_root_filename.c_str(),
                         clang_getCursorExtent(cursor));
+            return CXChildVisit_Continue;
         }
 
         return CXChildVisit_Recurse;
@@ -255,7 +248,7 @@ void TermSearchVisitor::operator()(Variable& var) const {
     std::regex type_regex{var.type};
     std::set<CXCursorKind> allowed_kinds;
     if (m_config.count("declarations")) {
-        allowed_kinds.insert(CXCursor_VarDecl);
+        allowed_kinds.insert({CXCursor_VarDecl, CXCursor_FieldDecl});
     }
     if (m_config.count("expressions")) {
         allowed_kinds.insert({CXCursor_DeclRefExpr, CXCursor_MemberRefExpr});
@@ -291,6 +284,7 @@ void TermSearchVisitor::operator()(Variable& var) const {
             std::regex_match(type_spelling.str(), type_regex)) {
             print_match(pthis->m_root_filename.c_str(),
                         clang_getCursorExtent(cursor));
+            return CXChildVisit_Continue;
         }
         return CXChildVisit_Recurse;
     };

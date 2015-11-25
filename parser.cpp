@@ -8,7 +8,8 @@
 
 #include "parser.hpp"
 
-SASParser::SASParser() : SASParser::base_type(term) {
+SASParser::SASParser(const boost::program_options::variables_map& _config)
+    : SASParser::base_type(term), config(_config) {
     using ascii::char_;
     using qi::lit;
     using qi::eps;
@@ -32,8 +33,10 @@ SASParser::SASParser() : SASParser::base_type(term) {
 
     term %= function | variable;
 
-    BOOST_SPIRIT_DEBUG_NODES(
-        (term)(function)(variable)(data)(parameter)(qualifiers));
+    if (config.count("debug")) {
+        BOOST_SPIRIT_DEBUG_NODES(
+            (term)(function)(variable)(data)(parameter)(qualifiers));
+    }
 }
 
 std::ostream& operator<<(std::ostream& stream, const Function& func) {

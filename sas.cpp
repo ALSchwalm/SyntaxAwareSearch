@@ -6,12 +6,11 @@
 namespace fs = boost::filesystem;
 
 int main(int argc, char** argv) {
-    SASParser g;
-
     po::options_description desc(
         "Usage: sas [options] search-string path [path...]");
     desc.add_options()                                                      //
-        ("help", "Print help messages")                                     //
+        ("help,h", "Print help messages")                                   //
+        ("debug", "Enable debugging output")                                //
         ("search-string", po::value<std::string>(), "The search string")    //
         ("paths", po::value<std::vector<std::string>>(), "Paths to search") //
         ("search-all-extensions",                                           //
@@ -55,6 +54,7 @@ int main(int argc, char** argv) {
 
     po::notify(vm);
 
+    SASParser g(vm);
     Term term;
     const auto search_string = vm["search-string"].as<std::string>();
     auto iter = search_string.begin();

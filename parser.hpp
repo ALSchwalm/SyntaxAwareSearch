@@ -5,6 +5,7 @@
 
 #include <boost/spirit/include/qi.hpp>
 #include <boost/fusion/include/adapt_struct.hpp>
+#include <boost/program_options.hpp>
 #include <string>
 
 namespace qi = boost::spirit::qi;
@@ -84,8 +85,9 @@ BOOST_FUSION_ADAPT_STRUCT(               //
 struct SASParser
     : qi::grammar<std::string::const_iterator, Term(), ascii::space_type> {
     using Iterator = std::string::const_iterator;
-    SASParser();
+    SASParser(const boost::program_options::variables_map&);
 
+    boost::program_options::variables_map config;
     qi::rule<Iterator, Term(), ascii::space_type> term;
     qi::rule<Iterator, Function(), ascii::space_type> function;
     qi::rule<Iterator, Variable(), ascii::space_type> variable;

@@ -7,6 +7,7 @@
 #endif
 
 #include <set>
+#include <fstream>
 
 #include "clang/Frontend/FrontendActions.h"
 #include "clang/Frontend/TextDiagnosticBuffer.h"
@@ -36,9 +37,6 @@ class ASTSearcher : public ASTConsumer,
     const ASTContext* m_context;
     const T& m_term;
 
-    static std::set<Decl::Kind> declSkipList;
-    static std::set<Stmt::StmtClass> stmtSkipList;
-
     ///  Adapted from clang CIndex.cpp
     ///
     /// Clang internally represents ranges where the end location points to the
@@ -67,12 +65,7 @@ class ASTSearcher : public ASTConsumer,
     }
 
 public:
-    bool VisitStmt(const Stmt* S) {
-        if (stmtSkipList.count(S->getStmtClass())) {
-            return true;
-        }
-        return true;
-    }
+    bool VisitStmt(const Stmt* S) { return true; }
 
     virtual bool HandleTopLevelDecl(DeclGroupRef DR) override {
         for (DeclGroupRef::iterator d = DR.begin(), e = DR.end(); d != e; ++d) {
@@ -93,15 +86,6 @@ public:
 };
 
 template <typename T>
-std::set<Decl::Kind> ASTSearcher<T>::declSkipList = {};
-
-// Currently just the implicit expressions from Stmt::IgnoreImplicit
-template <typename T>
-std::set<Stmt::StmtClass> ASTSearcher<T>::stmtSkipList =
-    {Stmt::MaterializeTemporaryExprClass, Stmt::ExprWithCleanupsClass,
-     Stmt::ImplicitCastExprClass, Stmt::CXXBindTemporaryExprClass};
-
-template <typename T>
 class BuildSearcherFrontendAction : public clang::ASTFrontendAction {
 public:
     BuildSearcherFrontendAction(const T& term) : m_term{term} {}
@@ -118,9 +102,12 @@ private:
 class CPPParser {
 public:
     template <typename T>
-    CPPParser(std::string str, const T& term) {
+    CPPParser(std::string path, const T& term) {
+        std::ifstream file{path};
+        std::stringstream buffer;
+        buffer << file.rdbuf();
         auto action = new BuildSearcherFrontendAction<T>(term);
-        runToolOnCodeWithArgs(action, str,
+        runToolOnCodeWithArgs(action, buffer.str(),
                               {"-std=c++14", "-I/usr/lib/clang/3.7.1/include"});
     }
 };

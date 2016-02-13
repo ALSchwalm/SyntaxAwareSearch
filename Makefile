@@ -27,6 +27,7 @@ CLANG_LIBS := \
 BOOST_LIBS := -lboost_program_options -lboost_system -lboost_filesystem
 
 all:
-	clang++ -fpic sas.cpp parser.cpp search.cpp -g -o sas -std=c++14 \
+	clang++ -fpic src/sas.cpp src/parser.cpp src/search.cpp -g -o bin/sas -std=c++14 \
+	-Iinclude \
 	$(CLANG_LIBS) $(BOOST_LIBS) \
 	$(LLVM_LDFLAGS)

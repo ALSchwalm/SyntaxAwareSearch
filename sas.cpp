@@ -13,7 +13,7 @@ int main(int argc, char** argv) {
         ("debug", "Enable debugging output")                                //
         ("search-string", po::value<std::string>(), "The search string")    //
         ("paths", po::value<std::vector<std::string>>(), "Paths to search") //
-        ("search-all-extensions",                                           //
+        ("search-all-extensions,a",                                         //
          "By default only file with h, hpp, c or cpp are searched."         //
          " Use this flag to disable this behavior.")                        //
         ("expressions,e", "Match expressions")                              //

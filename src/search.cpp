@@ -29,10 +29,16 @@
 using namespace clang;
 using namespace clang::tooling;
 
+// Forward declaration for CRTP
 template <typename T>
-class ASTSearcher : public ASTConsumer,
-                    public RecursiveASTVisitor<ASTSearcher<T>> {
+class TermSearcher;
 
+// Base type that implements utility functions for the specific
+// term searchers.
+template <typename T>
+class BaseTermSearcher : public ASTConsumer,
+                         public RecursiveASTVisitor<TermSearcher<T>> {
+protected:
     const CompilerInstance* m_compiler;
     const ASTContext* m_context;
     const T& m_term;
@@ -64,14 +70,39 @@ class ASTSearcher : public ASTConsumer,
         return Result;
     }
 
+    template <typename U>
+    void print_node(const U& node) {
+        auto& SM = m_compiler->getSourceManager();
+        auto range = node->getSourceRange();
+        range = translateSourceRange(range);
+
+        if (!range.isValid())
+            return;
+
+        auto start_loc = SM.getExpansionLoc(range.getBegin());
+        auto end_loc = SM.getExpansionLoc(range.getEnd());
+
+        auto start_row = SM.getExpansionLineNumber(start_loc);
+        auto start_column = SM.getExpansionColumnNumber(start_loc);
+        auto end_row = SM.getExpansionLineNumber(end_loc);
+        auto end_column = SM.getExpansionColumnNumber(end_loc);
+
+        std::cout << start_row << ":" << start_column << std::endl;
+    }
+
 public:
-    bool VisitStmt(const Stmt* S) { return true; }
+    BaseTermSearcher(const CompilerInstance* C, const T& term)
+        : m_compiler{C}, m_term{term} {
+        auto& diagEngine = C->getDiagnostics();
+        auto diagBuffer = new TextDiagnosticBuffer();
+        diagEngine.setClient(diagBuffer);
+    }
 
     virtual bool HandleTopLevelDecl(DeclGroupRef DR) override {
         for (DeclGroupRef::iterator d = DR.begin(), e = DR.end(); d != e; ++d) {
-            if (m_compiler->getSourceManager().isInMainFile(
+            if (this->m_compiler->getSourceManager().isInMainFile(
                     (*d)->getLocStart())) {
-                RecursiveASTVisitor<ASTSearcher>::TraverseDecl(*d);
+                this->TraverseDecl(*d);
             }
         }
         return true;
@@ -80,9 +111,27 @@ public:
     virtual void Initialize(clang::ASTContext& Context) override {
         this->m_context = &Context;
     }
+};
 
-    ASTSearcher(const CompilerInstance* C, const T& term)
-        : m_compiler{C}, m_term{term} {}
+// TermSearcher for functions
+template <>
+class TermSearcher<Function> : public BaseTermSearcher<Function> {
+public:
+    TermSearcher(const CompilerInstance* C, const Function& term)
+        : BaseTermSearcher<Function>(C, term) {}
+};
+
+// TermSearcher for variables
+template <>
+class TermSearcher<Variable> : public BaseTermSearcher<Variable> {
+public:
+    TermSearcher(const CompilerInstance* C, const Variable& term)
+        : BaseTermSearcher<Variable>(C, term) {}
+
+    bool VisitVarDecl(const VarDecl* v) {
+        std::cout << "here" << std::endl;
+        return true;
+    }
 };
 
 template <typename T>
@@ -92,7 +141,7 @@ public:
     virtual std::unique_ptr<clang::ASTConsumer>
     CreateASTConsumer(clang::CompilerInstance& Compiler, llvm::StringRef) {
         return std::unique_ptr<clang::ASTConsumer>(
-            new ASTSearcher<T>(&Compiler, m_term));
+            new TermSearcher<T>(&Compiler, m_term));
     }
 
 private:
@@ -112,10 +161,6 @@ public:
     }
 };
 
-/**
- * Run the search for a given 'term' on 'file'. The 'term' will be visited
- * using the 'TermSearchVisitor' type.
- */
 void search_file(const char* file, Term& term,
                  const po::variables_map& config) {
     auto p = boost::filesystem::path(file);

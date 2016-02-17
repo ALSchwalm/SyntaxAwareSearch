@@ -26,6 +26,14 @@
 
 #include "search.hpp"
 
+namespace {
+
+template <typename T, typename Reg>
+bool match(const T& t, const Reg& reg) {
+    return std::regex_match(t, std::regex(reg));
+}
+}
+
 using namespace clang;
 using namespace clang::tooling;
 
@@ -94,8 +102,7 @@ public:
     BaseTermSearcher(const CompilerInstance* C, const T& term)
         : m_compiler{C}, m_term{term} {
         auto& diagEngine = C->getDiagnostics();
-        auto diagBuffer = new TextDiagnosticBuffer();
-        diagEngine.setClient(diagBuffer);
+        diagEngine.setSuppressAllDiagnostics();
     }
 
     virtual bool HandleTopLevelDecl(DeclGroupRef DR) override {
@@ -129,7 +136,9 @@ public:
         : BaseTermSearcher<Variable>(C, term) {}
 
     bool VisitVarDecl(const VarDecl* v) {
-        std::cout << "here" << std::endl;
+        if (match(v->getNameAsString(), m_term.name)) {
+            this->print_node(v);
+        }
         return true;
     }
 };
@@ -138,6 +147,7 @@ template <typename T>
 class BuildSearcherFrontendAction : public clang::ASTFrontendAction {
 public:
     BuildSearcherFrontendAction(const T& term) : m_term{term} {}
+
     virtual std::unique_ptr<clang::ASTConsumer>
     CreateASTConsumer(clang::CompilerInstance& Compiler, llvm::StringRef) {
         return std::unique_ptr<clang::ASTConsumer>(

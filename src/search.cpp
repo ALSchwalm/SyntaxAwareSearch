@@ -30,6 +30,14 @@ using namespace clang::ast_matchers;
 
 namespace {
 
+std::string get_line_from_offset(StringRef buffer, std::size_t offset) {
+    assert(buffer.size() > offset);
+
+    auto line_start = buffer.find_last_of("\r\n", offset) + 1;
+    auto line_end = buffer.find_first_of("\r\n", offset);
+    return std::string(buffer.begin() + line_start, buffer.begin() + line_end);
+}
+
 ///  Adapted from clang CIndex.cpp
 ///
 /// Clang internally represents ranges where the end location points to the
@@ -73,11 +81,14 @@ void print_node(const ASTContext* context, const SourceManager* sm,
     auto end_row = sm->getExpansionLineNumber(end_loc);
     auto end_column = sm->getExpansionColumnNumber(end_loc);
 
-    std::cout << start_row << ":" << start_column << std::endl;
-}
+    auto file_id = sm->getFileID(start_loc);
+    auto buffer = sm->getBufferData(file_id);
+    auto offset = sm->getDecomposedLoc(start_loc).second;
+
+    std::cout << start_row << ":" << start_column << ":"
+              << get_line_from_offset(buffer, offset) << std::endl;
 }
 
-namespace {
 AST_MATCHER_P(NamedDecl, matchesUnqualifiedName, std::string, RegExp) {
     assert(!RegExp.empty());
     std::string FullNameString = "::" + Node.getNameAsString();

@@ -20,7 +20,10 @@ int bar() {
     return 20;
 }
 
-int test_foo(int) {}
+int test_foo(int) {
+    for (int i = 0; i < 100; ++i) {
+    }
+}
 
 void has_parameters(float x, int) {}
 

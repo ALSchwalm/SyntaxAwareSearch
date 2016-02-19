@@ -14,6 +14,7 @@ class test_bar;
 int test_foo(int);
 
 int bar() {
+    test_class c;
     int x;
     int y;
     test_foo(10);

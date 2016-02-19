@@ -91,7 +91,18 @@ void print_node(const ASTContext* context, const SourceManager* sm,
 
 AST_MATCHER_P(NamedDecl, matchesUnqualifiedName, std::string, RegExp) {
     assert(!RegExp.empty());
-    std::string FullNameString = "::" + Node.getNameAsString();
+    std::string FullNameString = Node.getNameAsString();
+    llvm::Regex RE(RegExp);
+    return RE.match(FullNameString);
+}
+
+AST_MATCHER_P(BuiltinType, matchesBuiltinType, std::string, RegExp) {
+    assert(!RegExp.empty());
+    LangOptions opts;
+    opts.CPlusPlus14 = 1;
+    PrintingPolicy p(opts);
+
+    std::string FullNameString = Node.getName(p);
     llvm::Regex RE(RegExp);
     return RE.match(FullNameString);
 }
@@ -125,19 +136,28 @@ public:
 
 void addMatchersForTerm(const Variable& v, MatchFinder& finder,
                         Printer<Variable>* printer) {
-    finder.addMatcher(varDecl(matchesUnqualifiedName(v.name)).bind("varDecl"),
-                      printer);
+    auto type_matches =
+        anyOf(hasType(recordDecl(matchesUnqualifiedName(v.type))),
+              hasType(builtinType(matchesBuiltinType(v.type))));
+
+    auto varDeclMatcher =
+        varDecl(allOf(matchesUnqualifiedName(v.name), type_matches))
+            .bind("varDecl");
+
+    finder.addMatcher(varDeclMatcher, printer);
 }
 
 void addMatchersForTerm(const Function& f, MatchFinder& finder,
                         Printer<Function>* printer) {
-    finder.addMatcher(functionDecl(matchesUnqualifiedName(f.name))
-                          .bind("funcDecl"),
-                      printer);
-    finder.addMatcher(callExpr(hasDeclaration(
-                                   namedDecl(matchesUnqualifiedName(f.name))))
-                          .bind("funcCall"),
-                      printer);
+    auto funcDeclMatcher =
+        functionDecl(matchesUnqualifiedName(f.name)).bind("funcDecl");
+
+    auto funcCallMatcher =
+        callExpr(hasDeclaration(namedDecl(matchesUnqualifiedName(f.name))))
+            .bind("funcCall");
+
+    finder.addMatcher(funcDeclMatcher, printer);
+    finder.addMatcher(funcCallMatcher, printer);
 }
 
 class CPPParser {

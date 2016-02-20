@@ -97,8 +97,47 @@ AST_MATCHER_P(NamedDecl, matchesUnqualifiedName, std::string, RegExp) {
 }
 
 AST_MATCHER_P(QualType, matchesType, std::string, RegExp) {
+    assert(!RegExp.empty());
     llvm::Regex RE(RegExp);
     return RE.match(Node.getAsString());
+}
+
+AST_MATCHER_P(ParmVarDecl, matchesParameter, ExplicitParameter, param) {
+    auto matcher = parmVarDecl(allOf(matchesUnqualifiedName(param.name),
+                                     hasType(matchesType(param.type)),
+                                     unless(isImplicit())));
+    return matcher.matches(Node, Finder, Builder);
+}
+
+AST_MATCHER_P(FunctionDecl, matchesParameters, std::vector<FunctionParameter>,
+              parameters) {
+    bool ellipses_active = false;
+    auto iter = Node.param_begin();
+    for (const auto& p : parameters) {
+        if (p.which() == 1) {
+            ellipses_active = true;
+            continue;
+        }
+        if (iter == Node.param_end()) {
+            return false;
+        }
+
+        auto matcher = matchesParameter(boost::get<ExplicitParameter>(p));
+        if (!matcher.matches(**iter, Finder, Builder)) {
+            if (!ellipses_active) {
+                return false;
+            } else {
+                ++iter;
+            }
+        } else {
+            ++iter;
+            ellipses_active = false;
+        }
+    }
+    if (iter != Node.param_end() && !ellipses_active) {
+        return false;
+    }
+    return true;
 }
 }
 
@@ -130,18 +169,21 @@ public:
 void addMatchersForTerm(const Variable& v, MatchFinder& finder,
                         Printer<Variable>* printer) {
 
-    auto varDeclMatcher = varDecl(allOf(matchesUnqualifiedName(v.name),
-                                        hasType(matchesType(v.type))))
-                              .bind("varDecl");
+    auto varDeclMatcher =
+        varDecl(allOf(matchesUnqualifiedName(v.name),
+                      hasType(matchesType(v.type)), unless(isImplicit())))
+            .bind("varDecl");
 
     finder.addMatcher(varDeclMatcher, printer);
 }
 
 void addMatchersForTerm(const Function& f, MatchFinder& finder,
                         Printer<Function>* printer) {
+
     auto declMatcher = functionDecl(allOf(matchesUnqualifiedName(f.name),
                                           returns(matchesType(f.return_type)),
-                                          unless(isImplicit())));
+                                          unless(isImplicit()),
+                                          matchesParameters(f.parameters)));
 
     auto funcDeclMatcher = declMatcher.bind("funcDecl");
 

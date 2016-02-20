@@ -118,11 +118,10 @@ template <>
 class Printer<Function> : public MatchFinder::MatchCallback {
 public:
     virtual void run(const MatchFinder::MatchResult& Result) {
-        auto d = Result.Nodes.getNodeAs<FunctionDecl>("funcDecl");
-        if (d) {
+        if (auto d = Result.Nodes.getNodeAs<FunctionDecl>("funcDecl")) {
             print_node(Result.Context, Result.SourceManager, d);
-        } else {
-            auto e = Result.Nodes.getNodeAs<CallExpr>("funcCall");
+        }
+        if (auto e = Result.Nodes.getNodeAs<CallExpr>("funcCall")) {
             print_node(Result.Context, Result.SourceManager, e);
         }
     }
@@ -140,13 +139,14 @@ void addMatchersForTerm(const Variable& v, MatchFinder& finder,
 
 void addMatchersForTerm(const Function& f, MatchFinder& finder,
                         Printer<Function>* printer) {
-    auto funcDeclMatcher =
-        functionDecl(allOf(matchesUnqualifiedName(f.name),
-                           returns(matchesType(f.return_type))))
-            .bind("funcDecl");
+    auto declMatcher = functionDecl(allOf(matchesUnqualifiedName(f.name),
+                                          returns(matchesType(f.return_type)),
+                                          unless(isImplicit())));
+
+    auto funcDeclMatcher = declMatcher.bind("funcDecl");
 
     auto funcCallMatcher =
-        callExpr(hasDeclaration(funcDeclMatcher)).bind("funcCall");
+        callExpr(hasDeclaration(declMatcher)).bind("funcCall");
 
     finder.addMatcher(funcDeclMatcher, printer);
     finder.addMatcher(funcCallMatcher, printer);

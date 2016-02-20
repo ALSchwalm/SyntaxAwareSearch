@@ -8,13 +8,14 @@ protected:
 private:
     void private_member_function() { int foo_bar_class; }
 };
+test_class c;
 
 class test_bar;
 
 int test_foo(int);
 
 int bar() {
-    test_class c;
+
     int x;
     int y;
     test_foo(10);
@@ -40,5 +41,6 @@ int x = test_foo(10);
 
 template <typename T>
 void template_func() {
+    has_parameters(1.0, 2);
     int inner_var;
 }

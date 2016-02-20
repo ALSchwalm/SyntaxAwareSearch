@@ -96,15 +96,9 @@ AST_MATCHER_P(NamedDecl, matchesUnqualifiedName, std::string, RegExp) {
     return RE.match(FullNameString);
 }
 
-AST_MATCHER_P(BuiltinType, matchesBuiltinType, std::string, RegExp) {
-    assert(!RegExp.empty());
-    LangOptions opts;
-    opts.CPlusPlus14 = 1;
-    PrintingPolicy p(opts);
-
-    std::string FullNameString = Node.getName(p);
+AST_MATCHER_P(QualType, matchesType, std::string, RegExp) {
     llvm::Regex RE(RegExp);
-    return RE.match(FullNameString);
+    return RE.match(Node.getAsString());
 }
 }
 
@@ -136,13 +130,10 @@ public:
 
 void addMatchersForTerm(const Variable& v, MatchFinder& finder,
                         Printer<Variable>* printer) {
-    auto type_matches =
-        anyOf(hasType(recordDecl(matchesUnqualifiedName(v.type))),
-              hasType(builtinType(matchesBuiltinType(v.type))));
 
-    auto varDeclMatcher =
-        varDecl(allOf(matchesUnqualifiedName(v.name), type_matches))
-            .bind("varDecl");
+    auto varDeclMatcher = varDecl(allOf(matchesUnqualifiedName(v.name),
+                                        hasType(matchesType(v.type))))
+                              .bind("varDecl");
 
     finder.addMatcher(varDeclMatcher, printer);
 }
@@ -150,11 +141,12 @@ void addMatchersForTerm(const Variable& v, MatchFinder& finder,
 void addMatchersForTerm(const Function& f, MatchFinder& finder,
                         Printer<Function>* printer) {
     auto funcDeclMatcher =
-        functionDecl(matchesUnqualifiedName(f.name)).bind("funcDecl");
+        functionDecl(allOf(matchesUnqualifiedName(f.name),
+                           returns(matchesType(f.return_type))))
+            .bind("funcDecl");
 
     auto funcCallMatcher =
-        callExpr(hasDeclaration(namedDecl(matchesUnqualifiedName(f.name))))
-            .bind("funcCall");
+        callExpr(hasDeclaration(funcDeclMatcher)).bind("funcCall");
 
     finder.addMatcher(funcDeclMatcher, printer);
     finder.addMatcher(funcCallMatcher, printer);

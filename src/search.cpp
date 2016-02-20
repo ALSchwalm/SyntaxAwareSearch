@@ -194,26 +194,23 @@ void addMatchersForTerm(const Function& f, MatchFinder& finder,
     finder.addMatcher(funcCallMatcher, printer);
 }
 
-class CPPParser {
-public:
-    template <typename T>
-    CPPParser(std::string path, const T& term) {
-        std::ifstream file{path};
-        std::stringstream buffer;
-        buffer << file.rdbuf();
+template <typename T>
+void findTermIn(std::string path, const T& term) {
+    std::ifstream file{path};
+    std::stringstream buffer;
+    buffer << file.rdbuf();
 
-        Printer<T> Printer;
-        MatchFinder Finder;
-        addMatchersForTerm(term, Finder, &Printer);
+    Printer<T> Printer;
+    MatchFinder Finder;
+    addMatchersForTerm(term, Finder, &Printer);
 
-        auto action_factory = newFrontendActionFactory(&Finder);
-        auto action = action_factory->create();
+    auto action_factory = newFrontendActionFactory(&Finder);
+    auto action = action_factory->create();
 
-        runToolOnCodeWithArgs(action, buffer.str(),
-                              {"-w", "-std=c++14",
-                               "-I/usr/lib/clang/3.7.1/include"});
-    }
-};
+    runToolOnCodeWithArgs(action, buffer.str(),
+                          {"-w", "-std=c++14",
+                           "-I/usr/lib/clang/3.7.1/include"});
+}
 
 void search_file(const char* file, Term& term,
                  const po::variables_map& config) {
@@ -228,9 +225,9 @@ void search_file(const char* file, Term& term,
 }
 
 void TermSearchVisitor::operator()(Function& f) const {
-    CPPParser(this->m_root_filename, f);
+    findTermIn(this->m_root_filename, f);
 }
 
 void TermSearchVisitor::operator()(Variable& v) const {
-    CPPParser(this->m_root_filename, v);
+    findTermIn(this->m_root_filename, v);
 }

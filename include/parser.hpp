@@ -13,13 +13,13 @@ namespace ascii = boost::spirit::ascii;
 
 struct Namespace {
     Namespace() = default;
-    Namespace(const std::string& _name) : name{_name} {}
+    explicit Namespace(const std::string& _name) : name{_name} {}
     std::string name;
 };
 
 struct Class {
     Class() = default;
-    Class(const std::string& _name) : name{_name} {}
+    explicit Class(const std::string& _name) : name{_name} {}
     std::string name;
 };
 

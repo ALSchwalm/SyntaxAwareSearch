@@ -222,7 +222,7 @@ void addMatchersForTerm(const Variable& v, MatchFinder& finder,
                         Printer<Variable>* printer) {
 
     auto varDeclMatcher =
-        varDecl(allOf(matchesUnqualifiedName(v.name),
+        varDecl(allOf(isExpansionInMainFile(), matchesUnqualifiedName(v.name),
                       hasType(matchesType(v.type)),
                       matchesQualifiers(v.qualifiers), unless(isImplicit())))
             .bind("varDecl");
@@ -233,11 +233,11 @@ void addMatchersForTerm(const Variable& v, MatchFinder& finder,
 void addMatchersForTerm(const Function& f, MatchFinder& finder,
                         Printer<Function>* printer) {
 
-    auto declMatcher = functionDecl(allOf(matchesUnqualifiedName(f.name),
-                                          returns(matchesType(f.return_type)),
-                                          unless(isImplicit()),
-                                          matchesQualifiers(f.qualifiers),
-                                          matchesParameters(f.parameters)));
+    auto declMatcher = functionDecl(
+        allOf(isExpansionInMainFile(), matchesUnqualifiedName(f.name),
+              returns(matchesType(f.return_type)), unless(isImplicit()),
+              matchesQualifiers(f.qualifiers),
+              matchesParameters(f.parameters)));
 
     auto funcDeclMatcher = declMatcher.bind("funcDecl");
 

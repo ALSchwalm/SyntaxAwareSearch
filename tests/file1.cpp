@@ -41,6 +41,7 @@ int x = test_foo(10);
 
 template <typename T>
 void template_func() {
+    auto x = []() {};
     has_parameters(1.0, 2);
     int inner_var;
 }

@@ -139,6 +139,58 @@ AST_MATCHER_P(FunctionDecl, matchesParameters, std::vector<FunctionParameter>,
     }
     return true;
 }
+
+AST_MATCHER_P(NamespaceDecl, matchesNamespace, Namespace, ns) {
+    llvm::Regex RE(ns.name);
+    return RE.match(Node.getNameAsString());
+}
+
+AST_MATCHER_P(RecordDecl, matchesClass, Class, cls) {
+    llvm::Regex RE(cls.name);
+    return RE.match(Node.getNameAsString());
+}
+
+AST_MATCHER_P(NamedDecl, matchesQualifiers, std::vector<Qualifier>,
+              qualifiers) {
+    auto context = Node.getDeclContext();
+
+    std::vector<const DeclContext*> contexts;
+
+    while (context && isa<NamedDecl>(context)) {
+        contexts.push_back(context);
+        context = context->getParent();
+    }
+
+    if (qualifiers.size() > contexts.size()) {
+        return false;
+    }
+
+    for (std::size_t i = 0; i < qualifiers.size(); ++i) {
+        const auto& qual = qualifiers[qualifiers.size() - 1 - i];
+        if (qual.which() == 0) {
+            if (const auto* ND = dyn_cast<NamespaceDecl>(contexts[i])) {
+                auto ns = boost::get<Namespace>(qual);
+                auto matcher = matchesNamespace(ns);
+                if (!matcher.matches(*ND, Finder, Builder)) {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        } else if (qual.which() == 1) {
+            if (const auto* RD = dyn_cast<RecordDecl>(contexts[i])) {
+                auto cls = boost::get<Class>(qual);
+                auto matcher = matchesClass(cls);
+                if (!matcher.matches(*RD, Finder, Builder)) {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        }
+    }
+    return true;
+}
 }
 
 template <typename T>
@@ -171,7 +223,8 @@ void addMatchersForTerm(const Variable& v, MatchFinder& finder,
 
     auto varDeclMatcher =
         varDecl(allOf(matchesUnqualifiedName(v.name),
-                      hasType(matchesType(v.type)), unless(isImplicit())))
+                      hasType(matchesType(v.type)),
+                      matchesQualifiers(v.qualifiers), unless(isImplicit())))
             .bind("varDecl");
 
     finder.addMatcher(varDeclMatcher, printer);
@@ -183,6 +236,7 @@ void addMatchersForTerm(const Function& f, MatchFinder& finder,
     auto declMatcher = functionDecl(allOf(matchesUnqualifiedName(f.name),
                                           returns(matchesType(f.return_type)),
                                           unless(isImplicit()),
+                                          matchesQualifiers(f.qualifiers),
                                           matchesParameters(f.parameters)));
 
     auto funcDeclMatcher = declMatcher.bind("funcDecl");

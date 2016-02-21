@@ -23,8 +23,9 @@ SASParser::SASParser(const boost::program_options::variables_map& _config)
     qualifier = (required_data[_val = construct<Namespace>(_1)]) |
                 ("#" >> required_data[_val = construct<Class>(_1)]);
 
-    qualifiers %= qualifier >> *("::" >> qualifier >> !(":" >> data)) >> "::" |
-                  eps[_val = std::vector<Qualifier>{}];
+    qualifiers %=
+        qualifier >> *("::" >> qualifier >> !(":" >> required_data)) >> "::" |
+        eps[_val = std::vector<Qualifier>{}];
 
     function %=
         qualifiers >> data >> ':' >> data >> '(' >> -(parameter % ',') >> ')';

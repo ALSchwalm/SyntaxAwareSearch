@@ -73,11 +73,11 @@ int main(int argc, char** argv) {
                 } else {
                     for (fs::recursive_directory_iterator iter(path), end;
                          iter != end; ++iter) {
-                        search_file(*iter, term, vm);
+                        print_matches(iter->path().string(), term, vm);
                     }
                 }
             } else {
-                search_file(path, term, vm);
+                print_matches(path, term, vm);
             }
         }
     } else {

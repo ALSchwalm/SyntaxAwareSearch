@@ -3,37 +3,51 @@
 
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
-#include <clang-c/Platform.h>
-#include <clang-c/Index.h>
 #include <vector>
 #include <regex>
 
 #include "parser.hpp"
 
-namespace po = boost::program_options;
+namespace clang {
+namespace ast_matchers {
+class MatchFinder;
+}
+}
 
-class TermSearchVisitor : public boost::static_visitor<> {
+namespace po = boost::program_options;
+using match_t = std::pair<std::pair<int, int>, std::pair<int, int>>;
+
+class MatchPrintVisitor : public boost::static_visitor<> {
 public:
-    TermSearchVisitor(const std::string& root_filename,
+    MatchPrintVisitor(const std::string& root_filename,
                       const po::variables_map& config)
         : m_root_filename{root_filename}, m_config{config} {}
-    void operator()(Function&) const;
-
-    void operator()(Variable&) const;
+    template <typename T>
+    void operator()(T&) const;
 
 private:
     std::string m_root_filename;
     po::variables_map m_config;
 };
 
-void search_file(const char* file, Term&, const po::variables_map& config);
-inline void search_file(const std::string& file, Term& term,
-                        const po::variables_map& config) {
-    return search_file(file.c_str(), term, config);
-}
-inline void search_file(const boost::filesystem::path& file, Term& term,
-                        const po::variables_map& config) {
-    return search_file(file.string(), term, config);
-}
+class MatchBuildListVisitor
+    : public boost::static_visitor<std::vector<match_t>> {
+public:
+    MatchBuildListVisitor(const std::string& root_filename,
+                          const po::variables_map& config)
+        : m_root_filename{root_filename}, m_config{config} {}
+    template <typename T>
+    std::vector<match_t> operator()(T&) const;
+
+private:
+    std::string m_root_filename;
+    po::variables_map m_config;
+};
+
+void print_matches(const std::string& file, Term& term,
+                   const po::variables_map& config);
+
+std::vector<match_t> find_matches(const std::string& file, Term& term,
+                                  const po::variables_map& config);
 
 #endif

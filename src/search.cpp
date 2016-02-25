@@ -7,13 +7,10 @@
 #endif
 
 #include <fstream>
+#include <type_traits>
 
-#include "clang/Frontend/FrontendActions.h"
 #include "clang/Tooling/CommonOptionsParser.h"
 #include "clang/Tooling/Tooling.h"
-#include "clang/AST/ASTContext.h"
-#include "clang/AST/ASTConsumer.h"
-#include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/Lex/Lexer.h"
 #include "clang/Basic/TargetOptions.h"
 #include "clang/Basic/TargetInfo.h"
@@ -23,12 +20,11 @@
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 
 #include "search.hpp"
+#include "matchers.hpp"
 
 using namespace clang;
 using namespace clang::tooling;
 using namespace clang::ast_matchers;
-
-namespace {
 
 std::string get_line_from_offset(StringRef buffer, std::size_t offset) {
     assert(buffer.size() > offset);
@@ -64,14 +60,13 @@ SourceRange translateSourceRange(const ASTContext* context,
     return Result;
 }
 
+using node_context_t = std::tuple<match_t, StringRef, std::size_t>;
+
 template <typename U>
-void print_node(const ASTContext* context, const SourceManager* sm,
-                const U* node) {
+node_context_t node_context(const ASTContext* context, const SourceManager* sm,
+                            const U* node) {
     auto range = node->getSourceRange();
     range = translateSourceRange(context, sm, range);
-
-    if (!range.isValid())
-        return;
 
     auto start_loc = sm->getExpansionLoc(range.getBegin());
     auto end_loc = sm->getExpansionLoc(range.getEnd());
@@ -85,141 +80,67 @@ void print_node(const ASTContext* context, const SourceManager* sm,
     auto buffer = sm->getBufferData(file_id);
     auto offset = sm->getDecomposedLoc(start_loc).second;
 
-    std::cout << start_row << ":" << start_column << ":"
-              << get_line_from_offset(buffer, offset) << std::endl;
+    return node_context_t{{{start_row, start_column}, {end_row, end_column}},
+                          buffer,
+                          offset};
 }
 
-AST_MATCHER_P(NamedDecl, matchesUnqualifiedName, std::string, RegExp) {
-    assert(!RegExp.empty());
-    std::string FullNameString = Node.getNameAsString();
-    llvm::Regex RE(RegExp);
-    return RE.match(FullNameString);
+void print_context(const node_context_t& context) {
+    const auto& bounds = std::get<0>(context);
+    std::cout << bounds.first.first << ":" << bounds.first.second << ":"
+              << get_line_from_offset(std::get<1>(context),
+                                      std::get<2>(context))
+              << std::endl;
 }
 
-AST_MATCHER_P(QualType, matchesType, std::string, RegExp) {
-    assert(!RegExp.empty());
-    llvm::Regex RE(RegExp);
-    return RE.match(Node.getAsString());
+node_context_t get_variable_context(const MatchFinder::MatchResult& Result) {
+    auto d = Result.Nodes.getNodeAs<VarDecl>("varDecl");
+    return node_context(Result.Context, Result.SourceManager, d);
 }
 
-AST_MATCHER_P(ParmVarDecl, matchesParameter, ExplicitParameter, param) {
-    auto matcher = parmVarDecl(allOf(matchesUnqualifiedName(param.name),
-                                     hasType(matchesType(param.type)),
-                                     unless(isImplicit())));
-    return matcher.matches(Node, Finder, Builder);
-}
-
-AST_MATCHER_P(FunctionDecl, matchesParameters, std::vector<FunctionParameter>,
-              parameters) {
-    bool ellipses_active = false;
-    auto iter = Node.param_begin();
-    for (const auto& p : parameters) {
-        if (p.which() == 1) {
-            ellipses_active = true;
-            continue;
-        }
-        if (iter == Node.param_end()) {
-            return false;
-        }
-
-        auto matcher = matchesParameter(boost::get<ExplicitParameter>(p));
-        if (!matcher.matches(**iter, Finder, Builder)) {
-            if (!ellipses_active) {
-                return false;
-            } else {
-                ++iter;
-            }
-        } else {
-            ++iter;
-            ellipses_active = false;
-        }
+node_context_t get_function_context(const MatchFinder::MatchResult& Result) {
+    if (auto d = Result.Nodes.getNodeAs<FunctionDecl>("funcDecl")) {
+        return node_context(Result.Context, Result.SourceManager, d);
     }
-    if (iter != Node.param_end() && !ellipses_active) {
-        return false;
+    if (auto e = Result.Nodes.getNodeAs<CallExpr>("funcCall")) {
+        return node_context(Result.Context, Result.SourceManager, e);
     }
-    return true;
-}
-
-AST_MATCHER_P(NamespaceDecl, matchesNamespace, Namespace, ns) {
-    llvm::Regex RE(ns.name);
-    return RE.match(Node.getNameAsString());
-}
-
-AST_MATCHER_P(RecordDecl, matchesClass, Class, cls) {
-    llvm::Regex RE(cls.name);
-    return RE.match(Node.getNameAsString());
-}
-
-AST_MATCHER_P(NamedDecl, matchesQualifiers, std::vector<Qualifier>,
-              qualifiers) {
-    auto context = Node.getDeclContext();
-
-    std::vector<const DeclContext*> contexts;
-
-    while (context && isa<NamedDecl>(context)) {
-        contexts.push_back(context);
-        context = context->getParent();
-    }
-
-    if (qualifiers.size() > contexts.size()) {
-        return false;
-    }
-
-    for (std::size_t i = 0; i < qualifiers.size(); ++i) {
-        const auto& qual = qualifiers[qualifiers.size() - 1 - i];
-        if (qual.which() == 0) {
-            if (const auto* ND = dyn_cast<NamespaceDecl>(contexts[i])) {
-                auto ns = boost::get<Namespace>(qual);
-                auto matcher = matchesNamespace(ns);
-                if (!matcher.matches(*ND, Finder, Builder)) {
-                    return false;
-                }
-            } else {
-                return false;
-            }
-        } else if (qual.which() == 1) {
-            if (const auto* RD = dyn_cast<RecordDecl>(contexts[i])) {
-                auto cls = boost::get<Class>(qual);
-                auto matcher = matchesClass(cls);
-                if (!matcher.matches(*RD, Finder, Builder)) {
-                    return false;
-                }
-            } else {
-                return false;
-            }
-        }
-    }
-    return true;
-}
+    assert(false && "Function matcher matched invalid function");
 }
 
 template <typename T>
-class Printer;
-
-template <>
-class Printer<Variable> : public MatchFinder::MatchCallback {
+class Printer : public MatchFinder::MatchCallback {
 public:
     virtual void run(const MatchFinder::MatchResult& Result) {
-        auto d = Result.Nodes.getNodeAs<VarDecl>("varDecl");
-        print_node(Result.Context, Result.SourceManager, d);
+        node_context_t context;
+        if (std::is_same<T, Variable>::value) {
+            context = get_variable_context(Result);
+        } else if (std::is_same<T, Function>::value) {
+            context = get_function_context(Result);
+        }
+        print_context(context);
     }
 };
 
-template <>
-class Printer<Function> : public MatchFinder::MatchCallback {
+template <typename T>
+class MatchListBuilder : public MatchFinder::MatchCallback {
 public:
     virtual void run(const MatchFinder::MatchResult& Result) {
-        if (auto d = Result.Nodes.getNodeAs<FunctionDecl>("funcDecl")) {
-            print_node(Result.Context, Result.SourceManager, d);
+        node_context_t context;
+        if (std::is_same<T, Variable>::value) {
+            context = get_variable_context(Result);
+        } else if (std::is_same<T, Function>::value) {
+            context = get_function_context(Result);
         }
-        if (auto e = Result.Nodes.getNodeAs<CallExpr>("funcCall")) {
-            print_node(Result.Context, Result.SourceManager, e);
-        }
+        matches.push_back(std::get<0>(context));
     }
+
+    std::vector<match_t> matches;
 };
 
+template <typename Callback>
 void addMatchersForTerm(const Variable& v, MatchFinder& finder,
-                        Printer<Variable>* printer) {
+                        Callback* callback) {
 
     auto varDeclMatcher =
         varDecl(allOf(isExpansionInMainFile(), matchesUnqualifiedName(v.name),
@@ -227,11 +148,12 @@ void addMatchersForTerm(const Variable& v, MatchFinder& finder,
                       matchesQualifiers(v.qualifiers), unless(isImplicit())))
             .bind("varDecl");
 
-    finder.addMatcher(varDeclMatcher, printer);
+    finder.addMatcher(varDeclMatcher, callback);
 }
 
+template <typename Callback>
 void addMatchersForTerm(const Function& f, MatchFinder& finder,
-                        Printer<Function>* printer) {
+                        Callback* callback) {
 
     auto declMatcher = functionDecl(
         allOf(isExpansionInMainFile(), matchesUnqualifiedName(f.name),
@@ -244,21 +166,49 @@ void addMatchersForTerm(const Function& f, MatchFinder& finder,
     auto funcCallMatcher =
         callExpr(hasDeclaration(declMatcher)).bind("funcCall");
 
-    finder.addMatcher(funcDeclMatcher, printer);
-    finder.addMatcher(funcCallMatcher, printer);
+    finder.addMatcher(funcDeclMatcher, callback);
+    finder.addMatcher(funcCallMatcher, callback);
+}
+
+bool should_search_path(const std::string& file,
+                        const po::variables_map& config) {
+    auto p = boost::filesystem::path(file);
+    auto extension = boost::filesystem::extension(p);
+    if (!config.count("search-all-extensions") && extension != ".cpp" &&
+        extension != ".c" && extension != ".h" && extension != ".hpp") {
+        return false;
+    }
+    return true;
+}
+
+void print_matches(const std::string& file, Term& term,
+                   const po::variables_map& config) {
+    if (!should_search_path(file, config)) {
+        return;
+    }
+    boost::apply_visitor(MatchPrintVisitor(file, config), term);
+}
+
+std::vector<match_t> find_matches(const std::string& file, Term& term,
+                                  const po::variables_map& config) {
+    if (!should_search_path(file, config)) {
+        return {};
+    }
+    return boost::apply_visitor(MatchBuildListVisitor(file, config), term);
 }
 
 template <typename T>
-void findTermIn(std::string path, const T& term) {
-    std::ifstream file{path};
+void MatchPrintVisitor::operator()(T& term) const {
+    std::ifstream ifs{this->m_root_filename};
     std::stringstream buffer;
-    buffer << file.rdbuf();
+    buffer << ifs.rdbuf();
 
-    Printer<T> Printer;
-    MatchFinder Finder;
-    addMatchersForTerm(term, Finder, &Printer);
+    MatchFinder finder;
+    Printer<T> printer;
 
-    auto action_factory = newFrontendActionFactory(&Finder);
+    addMatchersForTerm(term, finder, &printer);
+
+    auto action_factory = newFrontendActionFactory(&finder);
     auto action = action_factory->create();
 
     runToolOnCodeWithArgs(action, buffer.str(),
@@ -266,22 +216,22 @@ void findTermIn(std::string path, const T& term) {
                            "-I/usr/lib/clang/3.7.1/include"});
 }
 
-void search_file(const char* file, Term& term,
-                 const po::variables_map& config) {
-    auto p = boost::filesystem::path(file);
-    auto extension = boost::filesystem::extension(p);
-    if (!config.count("search-all-extensions") && extension != ".cpp" &&
-        extension != ".c" && extension != ".h" && extension != ".hpp") {
-        return;
-    }
+template <typename T>
+std::vector<match_t> MatchBuildListVisitor::operator()(T& term) const {
+    std::ifstream ifs{this->m_root_filename};
+    std::stringstream buffer;
+    buffer << ifs.rdbuf();
 
-    boost::apply_visitor(TermSearchVisitor(file, config), term);
-}
+    MatchFinder finder;
+    MatchListBuilder<T> builder;
 
-void TermSearchVisitor::operator()(Function& f) const {
-    findTermIn(this->m_root_filename, f);
-}
+    addMatchersForTerm(term, finder, &builder);
 
-void TermSearchVisitor::operator()(Variable& v) const {
-    findTermIn(this->m_root_filename, v);
+    auto action_factory = newFrontendActionFactory(&finder);
+    auto action = action_factory->create();
+
+    runToolOnCodeWithArgs(action, buffer.str(),
+                          {"-w", "-std=c++14",
+                           "-I/usr/lib/clang/3.7.1/include"});
+    return builder.matches;
 }

@@ -98,4 +98,21 @@ struct SASParser
     qi::rule<Iterator, std::string(), ascii::space_type> required_data;
 };
 
+inline Term
+parse_search_string(const std::string& search_string,
+                    const boost::program_options::variables_map& vm) {
+    SASParser g(vm);
+    Term term;
+
+    auto iter = search_string.begin();
+    auto end = search_string.end();
+    bool r = phrase_parse(iter, end, g, ascii::space, term);
+
+    if (!r || iter != end) {
+        throw std::invalid_argument("Parsing failed");
+    }
+
+    return term;
+}
+
 #endif

@@ -31,3 +31,9 @@ all:
 	-Iinclude \
 	$(CLANG_LIBS) $(BOOST_LIBS) \
 	$(LLVM_LDFLAGS)
+
+test:
+	clang++ -fpic tests/tests.cpp src/parser.cpp src/search.cpp -g -o bin/tests -std=c++14 \
+	-Iinclude \
+	$(CLANG_LIBS) $(BOOST_LIBS) \
+	$(LLVM_LDFLAGS)

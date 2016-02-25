@@ -54,36 +54,26 @@ int main(int argc, char** argv) {
 
     po::notify(vm);
 
-    SASParser g(vm);
-    Term term;
     const auto search_string = vm["search-string"].as<std::string>();
-    auto iter = search_string.begin();
-    auto end = search_string.end();
-    bool r = phrase_parse(iter, end, g, ascii::space, term);
+    auto term = parse_search_string(search_string, vm);
 
     auto paths = vm["paths"].as<std::vector<std::string>>();
 
-    if (r && iter == end) {
-        for (const auto& path : paths) {
-            if (fs::is_directory(path)) {
-                if (!vm.count("recursive")) {
-                    std::cerr << "sas: " << path << ": Is a directory"
-                              << std::endl;
-                    continue;
-                } else {
-                    for (fs::recursive_directory_iterator iter(path), end;
-                         iter != end; ++iter) {
-                        print_matches(iter->path().string(), term, vm);
-                    }
-                }
+    for (const auto& path : paths) {
+        if (fs::is_directory(path)) {
+            if (!vm.count("recursive")) {
+                std::cerr << "sas: " << path << ": Is a directory" << std::endl;
+                continue;
             } else {
-                print_matches(path, term, vm);
+                for (fs::recursive_directory_iterator iter(path), end;
+                     iter != end; ++iter) {
+                    print_matches(iter->path().string(), term, vm);
+                }
             }
+        } else {
+            print_matches(path, term, vm);
         }
-    } else {
-        std::cout << "-------------------------\n";
-        std::cout << "Parsing failed\n";
-        std::cout << "-------------------------\n";
     }
+
     return 0;
 }

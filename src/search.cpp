@@ -108,6 +108,11 @@ node_context_t get_function_context(const MatchFinder::MatchResult& Result) {
     assert(false && "Function matcher matched invalid function");
 }
 
+node_context_t get_type_context(const MatchFinder::MatchResult& Result) {
+    auto d = Result.Nodes.getNodeAs<RecordDecl>("typeDecl");
+    return node_context(Result.Context, Result.SourceManager, d);
+}
+
 template <typename T>
 class Printer : public MatchFinder::MatchCallback {
 public:
@@ -117,6 +122,8 @@ public:
             context = get_variable_context(Result);
         } else if (std::is_same<T, Function>::value) {
             context = get_function_context(Result);
+        } else if (std::is_same<T, Class>::value) {
+            context = get_type_context(Result);
         }
         print_context(context);
     }
@@ -131,6 +138,8 @@ public:
             context = get_variable_context(Result);
         } else if (std::is_same<T, Function>::value) {
             context = get_function_context(Result);
+        } else if (std::is_same<T, Class>::value) {
+            context = get_type_context(Result);
         }
         matches.push_back(std::get<0>(context));
     }
@@ -168,6 +177,16 @@ void addMatchersForTerm(const Function& f, MatchFinder& finder,
 
     finder.addMatcher(funcDeclMatcher, callback);
     finder.addMatcher(funcCallMatcher, callback);
+}
+
+template <typename Callback>
+void addMatchersForTerm(const Class& c, MatchFinder& finder,
+                        Callback* callback) {
+
+    auto typeDeclMatcher =
+        recordDecl(allOf(matchesClass(c), unless(isImplicit())))
+            .bind("typeDecl");
+    finder.addMatcher(typeDeclMatcher, callback);
 }
 
 bool should_search_path(const std::string& file,

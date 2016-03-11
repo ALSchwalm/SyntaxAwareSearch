@@ -47,7 +47,7 @@ struct Variable {
     std::string name;
 };
 
-using Term = boost::variant<Variable, Function>;
+using Term = boost::variant<Variable, Function, Class>;
 
 std::ostream& operator<<(std::ostream& stream, const Function&);
 std::ostream& operator<<(std::ostream& stream, const ExplicitParameter&);
@@ -91,6 +91,7 @@ struct SASParser
     qi::rule<Iterator, Term(), ascii::space_type> term;
     qi::rule<Iterator, Function(), ascii::space_type> function;
     qi::rule<Iterator, Variable(), ascii::space_type> variable;
+    qi::rule<Iterator, Class(), ascii::space_type> type;
     qi::rule<Iterator, FunctionParameter(), ascii::space_type> parameter;
     qi::rule<Iterator, Qualifier(), ascii::space_type> qualifier;
     qi::rule<Iterator, std::vector<Qualifier>(), ascii::space_type> qualifiers;

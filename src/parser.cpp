@@ -19,9 +19,10 @@ SASParser::SASParser(const boost::program_options::variables_map& _config)
     required_data %= +(char_ - char_("#/:(),")) | '/' >> +(char_ - '/') >> '/';
     data %= required_data | eps[_val = ".*"];
 
+    type %= ("#" >> required_data[_val = construct<Class>(_1)]);
+
     parameter %= (data >> ':' >> data) | lit("...")[_val = Ellipses{}];
-    qualifier = (required_data[_val = construct<Namespace>(_1)]) |
-                ("#" >> required_data[_val = construct<Class>(_1)]);
+    qualifier = (required_data[_val = construct<Namespace>(_1)]) | type;
 
     qualifiers %=
         qualifier >> *("::" >> qualifier >> !(":" >> required_data)) >> "::" |
@@ -32,7 +33,7 @@ SASParser::SASParser(const boost::program_options::variables_map& _config)
 
     variable %= qualifiers >> data >> ':' >> data;
 
-    term %= function | variable;
+    term %= function | variable | type;
 
     if (config.count("debug")) {
         BOOST_SPIRIT_DEBUG_NODES(
